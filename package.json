@@ -1,0 +1,13 @@
+{
+  "name": "git-plugin",
+  "version": "0.0.1",
+  "description": "Yunzai Git repository assistant for GitHub, Gitee, GitCode and Gitea.",
+  "type": "module",
+  "main": "index.js",
+  "author": "wwj",
+  "dependencies": {
+    "express": "^4.21.2",
+    "node-fetch": "^3.3.2",
+    "yaml": "^2.8.0"
+  }
+}

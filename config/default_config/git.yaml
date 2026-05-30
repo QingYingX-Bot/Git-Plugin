@@ -1,0 +1,32 @@
+defaultPlatform: github
+autoResolveLinks: true
+pollingEnabled: true
+checkIntervalMinutes: 30
+useLowercaseRepo: true
+requestTimeoutMs: 15000
+
+providers:
+  github:
+    token: ""
+    apiBase: "https://api.github.com"
+    webBase: "https://github.com"
+  gitee:
+    token: ""
+    apiBase: "https://gitee.com/api/v5"
+    webBase: "https://gitee.com"
+  gitcode:
+    token: ""
+    apiBase: "https://api.gitcode.com/api/v5"
+    webBase: "https://gitcode.com"
+  gitea:
+    instances:
+      default:
+        baseUrl: ""
+        token: ""
+
+webhook:
+  enabled: false
+  host: "0.0.0.0"
+  port: 6192
+  path: "/git/webhook"
+  secret: ""
