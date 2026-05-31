@@ -27,7 +27,13 @@ export class GitHubProvider {
   }
 
   async listIssues(ref, options = {}) {
-    const query = { state: options.state || 'all', sort: 'created', direction: 'desc', per_page: options.perPage || 10 };
+    const query = {
+      state: options.state || 'all',
+      sort: 'created',
+      direction: 'desc',
+      per_page: options.perPage || 10,
+      page: options.page || 1
+    };
     const data = await this.get(`/repos/${this.repoPath(ref)}/issues`, query);
     return Array.isArray(data) ? data.map(item => normalizeIssue(this.platform, item, this.withFallback(ref))) : [];
   }
@@ -38,7 +44,13 @@ export class GitHubProvider {
   }
 
   async listPulls(ref, options = {}) {
-    const query = { state: options.state || 'all', sort: 'created', direction: 'desc', per_page: options.perPage || 10 };
+    const query = {
+      state: options.state || 'all',
+      sort: 'created',
+      direction: 'desc',
+      per_page: options.perPage || 10,
+      page: options.page || 1
+    };
     const data = await this.get(`/repos/${this.repoPath(ref)}/pulls`, query);
     return Array.isArray(data) ? data.map(item => normalizePull(this.platform, item, this.withFallback(ref))) : [];
   }

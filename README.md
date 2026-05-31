@@ -1,172 +1,70 @@
 # Git-Plugin
 
-Git-Plugin 是面向 Yunzai 的 Git 仓库助手，支持 GitHub、Gitee、GitCode、Gitea 四个平台。
+面向 Yunzai 的 Git 仓库助手，支持 GitHub、Gitee、GitCode、Gitea 四个平台。
 
-插件按平台拆分 Provider，命令层只负责解析消息和调用统一接口。平台 API、鉴权、README 读取和 URL 规则分别放在各自 Provider 内，避免不同平台逻辑互相影响。
-
-## 支持平台
-
-| 平台 | Provider | 默认 API Base | 说明 |
-| --- | --- | --- | --- |
-| GitHub | `model/providers/githubProvider.js` | `https://api.github.com` | 支持 OpenGraph 卡片 |
-| Gitee | `model/providers/giteeProvider.js` | `https://gitee.com/api/v5` | 使用 `access_token` |
-| GitCode | `model/providers/gitcodeProvider.js` | `https://api.gitcode.com/api/v5` | 支持 Bearer、`PRIVATE-TOKEN`、`access_token` |
-| Gitea | `model/providers/giteaProvider.js` | `{baseUrl}/api/v1` | 需要配置实例地址 |
+Git-Plugin 可以查询仓库、Issue、PR、README，支持仓库订阅、轮询推送、Webhook 实时推送，以及 Git 仓库链接自动解析。平台实现按 Provider 分离，GitHub / Gitee / GitCode / Gitea 的 API、鉴权和地址规则互不混用。
 
 ## 功能
 
-- 仓库信息查询
-- Issue 查询
-- PR 查询
-- README 查询
-- 仓库订阅、取消订阅、订阅列表
-- 订阅轮询推送
-- Git 仓库链接自动解析
-- Webhook 接收与订阅推送
-- GitHub API 限流查询
+| 功能 | 说明 |
+| --- | --- |
+| 仓库查询 | 查看描述、Star、Fork、默认分支、更新时间 |
+| Issue 查询 | 按编号查详情；只填仓库时列出开启 Issue 编号 |
+| PR 查询 | 按编号查详情；只填仓库时列出开启 PR 编号 |
+| README 查询 | 读取仓库 README |
+| API 限流 | 查询 GitHub API rate limit |
+| 仓库订阅 | 在群聊或私聊订阅仓库更新 |
+| 轮询推送 | 定时检查新增 Issue / PR |
+| Webhook 推送 | 接收平台 webhook 并推送到订阅会话 |
+| 链接解析 | 自动解析 Git 仓库链接 |
 
-## 通用命令
+## 支持平台
 
-通用命令通过第一个参数指定平台。
+| 平台 | 默认 API | Provider |
+| --- | --- | --- |
+| GitHub | `https://api.github.com` | `model/providers/githubProvider.js` |
+| Gitee | `https://gitee.com/api/v5` | `model/providers/giteeProvider.js` |
+| GitCode | `https://api.gitcode.com/api/v5` | `model/providers/gitcodeProvider.js` |
+| Gitea | `{baseUrl}/api/v1` | `model/providers/giteaProvider.js` |
 
-```text
-#gitrepo github owner/repo
-#gitrepo gitee owner/repo
-#gitrepo gitcode owner/repo
-#gitrepo gitea https://gitea.example.com owner/repo
+## 安装
 
-#gitissue github owner/repo#1
-#gitissue gitee owner/repo#I12345
-#gitissue gitcode owner/repo#1
-#gitissue gitea https://gitea.example.com owner/repo#1
+在 Yunzai 根目录执行：
 
-#gitpr github owner/repo#1
-#gitreadme github owner/repo
-#gitlimit
-
-#gitsub github owner/repo
-#gitunsub github owner/repo
-#gitlist
-#gitlist github
-
-#gitdefault github owner/repo
-#gitlink on
-#gitlink off
+```bash
+git clone https://github.com/QingYingX-Bot/Git-Plugin.git plugins/Git-Plugin
+cd plugins/Git-Plugin
+npm install
 ```
 
-## 平台直达命令
-
-平台直达命令使用完整平台名作为前缀。
-
-```text
-#githubrepo owner/repo
-#githubissue owner/repo#1
-#githubpr owner/repo#1
-#githubreadme owner/repo
-#githublimit
-#githubsub owner/repo
-#githubunsub owner/repo
-#githubdefault owner/repo
-
-#giteerepo owner/repo
-#giteeissue owner/repo#I12345
-#giteepr owner/repo#1
-#giteereadme owner/repo
-#giteesub owner/repo
-#giteeunsub owner/repo
-#giteedefault owner/repo
-
-#gitcoderepo owner/repo
-#gitcodeissue owner/repo#1
-#gitcodepr owner/repo#1
-#gitcodereadme owner/repo
-#gitcodesub owner/repo
-#gitcodeunsub owner/repo
-#gitcodedefault owner/repo
-
-#gitearepo https://gitea.example.com owner/repo
-#giteaissue https://gitea.example.com owner/repo#1
-#giteapr https://gitea.example.com owner/repo#1
-#giteareadme https://gitea.example.com owner/repo
-#giteasub https://gitea.example.com owner/repo
-#giteaunsub https://gitea.example.com owner/repo
-#giteadefault https://gitea.example.com owner/repo
-```
+安装后重启 Yunzai。
 
 ## 配置
 
-默认配置文件：
+默认配置：
 
 ```text
 plugins/Git-Plugin/config/default_config/git.yaml
 ```
 
-首次运行会复制到：
+运行配置：
 
 ```text
 plugins/Git-Plugin/config/config/git.yaml
 ```
 
-配置示例：
+首次运行会从默认配置复制一份到运行配置。真实 token、webhook secret、Gitea 实例地址写到运行配置里。
 
-```yaml
-defaultPlatform: github
-autoResolveLinks: true
-pollingEnabled: true
-checkIntervalMinutes: 30
-useLowercaseRepo: true
-requestTimeoutMs: 15000
+### Token 权限
 
-providers:
-  github:
-    token: ""
-    apiBase: "https://api.github.com"
-    webBase: "https://github.com"
-  gitee:
-    token: ""
-    apiBase: "https://gitee.com/api/v5"
-    webBase: "https://gitee.com"
-  gitcode:
-    token: ""
-    apiBase: "https://api.gitcode.com/api/v5"
-    webBase: "https://gitcode.com"
-  gitea:
-    instances:
-      default:
-        baseUrl: "https://gitea.example.com"
-        token: ""
-
-webhook:
-  enabled: false
-  host: "0.0.0.0"
-  port: 6192
-  path: "/git/webhook"
-  secret: ""
-```
-
-## 数据文件
-
-运行数据写入 `plugins/Git-Plugin/data/`：
-
-| 文件 | 内容 |
+| 平台 | 推荐权限 |
 | --- | --- |
-| `subscriptions.json` | 仓库订阅 |
-| `defaultRepos.json` | 会话默认仓库 |
-| `linkSettings.json` | 会话链接解析开关 |
-| `lastCheck.json` | 轮询时间戳 |
+| GitHub | Fine-grained PAT，`Contents` / `Issues` / `Pull requests` 只读 |
+| Gitee | 私人令牌，仓库 / Issue / PR 读权限 |
+| GitCode | Access Token，仓库 / Issue / PR 读权限 |
+| Gitea | Access Token，repository / issue 读权限 |
 
-订阅 key 格式：
-
-```text
-github:owner/repo
-gitee:owner/repo
-gitcode:owner/repo
-gitea:https://gitea.example.com:owner/repo
-```
-
-## Webhook
-
-启用配置：
+### Webhook 配置
 
 ```yaml
 webhook:
@@ -175,32 +73,173 @@ webhook:
   port: 6192
   path: "/git/webhook"
   secret: "your-secret"
+  pushClosedEvents: false
+  allowedEventTypes:
+    - issues
+    - pull_requests
 ```
 
-Webhook 地址：
+Webhook URL：
 
 ```text
 http://host:6192/git/webhook
 ```
 
-平台识别规则：
+有公网域名时填平台侧 Payload URL，例如：
 
-| 平台 | 事件头 |
+```text
+https://githook.example.com/git/webhook
+```
+
+默认只推送 Issues / PR 相关事件，并过滤 closed。事件列表和其他事件含义见 [WEBHOOK_EVENTS.md](WEBHOOK_EVENTS.md)。
+
+## 快速开始
+
+订阅一个 GitHub 仓库：
+
+```text
+#githubsub QingYingX-Bot/Git-Plugin
+```
+
+查询仓库：
+
+```text
+#githubrepo QingYingX-Bot/Git-Plugin
+```
+
+查询开启 Issue 编号：
+
+```text
+#githubissue QingYingX-Bot/Git-Plugin
+```
+
+查询某个 Issue：
+
+```text
+#githubissue QingYingX-Bot/Git-Plugin#1
+```
+
+查询开启 PR 编号：
+
+```text
+#githubpr QingYingX-Bot/Git-Plugin
+```
+
+## 通用命令
+
+通用命令通过第一个参数指定平台。
+
+| 命令 | 说明 |
 | --- | --- |
-| GitHub | `x-github-event` |
-| Gitee | `x-gitee-event` |
-| GitCode | `x-gitcode-event` |
-| Gitea | `x-gitea-event` |
+| `#gitrepo github owner/repo` | 查询仓库 |
+| `#gitissue github owner/repo#1` | 查询 Issue |
+| `#gitissue github owner/repo` | 查询开启 Issue 编号列表 |
+| `#gitpr github owner/repo#1` | 查询 PR |
+| `#gitpr github owner/repo` | 查询开启 PR 编号列表 |
+| `#gitreadme github owner/repo` | 查询 README |
+| `#gitlimit` | 查询 API 限流 |
+| `#gitsub github owner/repo` | 订阅仓库 |
+| `#gitunsub github owner/repo` | 取消订阅仓库 |
+| `#gitlist` | 查看当前会话订阅 |
+| `#gitlist github` | 查看当前会话指定平台订阅 |
+| `#gitdefault github owner/repo` | 设置当前会话默认仓库 |
+| `#gitlink on` | 开启链接自动解析 |
+| `#gitlink off` | 关闭链接自动解析 |
 
-GitHub 使用 `x-hub-signature-256` 校验签名。其他平台使用 `x-gitee-token`、`x-gitcode-token`、`x-gitea-token` 或 `?secret=` 与配置中的 `webhook.secret` 比对。
+Gitea 通用命令需要带实例地址：
 
-## 维护边界
+```text
+#gitrepo gitea https://gitea.example.com owner/repo
+#gitissue gitea https://gitea.example.com owner/repo#1
+#gitpr gitea https://gitea.example.com owner/repo#1
+#gitsub gitea https://gitea.example.com owner/repo
+```
 
-- 平台 API 差异放在 `model/providers/*Provider.js`
-- 字段归一化放在 `model/normalize.js`
-- 命令参数解析放在 `model/repoParser.js`
-- 订阅和默认仓库存储放在 `model/repoStore.js`
-- 轮询推送放在 `model/pollingService.js`
-- Webhook 接收放在 `model/webhookServer.js`
+## 平台直达命令
 
-新增平台时，先新增 Provider，再在 `model/platform.js` 和 `model/providers/index.js` 注册平台。
+平台直达命令使用完整平台名前缀。
+
+| 平台 | 仓库 | Issue | PR | README | 订阅 |
+| --- | --- | --- | --- | --- | --- |
+| GitHub | `#githubrepo owner/repo` | `#githubissue owner/repo#1` | `#githubpr owner/repo#1` | `#githubreadme owner/repo` | `#githubsub owner/repo` |
+| Gitee | `#giteerepo owner/repo` | `#giteeissue owner/repo#I12345` | `#giteepr owner/repo#1` | `#giteereadme owner/repo` | `#giteesub owner/repo` |
+| GitCode | `#gitcoderepo owner/repo` | `#gitcodeissue owner/repo#1` | `#gitcodepr owner/repo#1` | `#gitcodereadme owner/repo` | `#gitcodesub owner/repo` |
+| Gitea | `#gitearepo https://gitea.example.com owner/repo` | `#giteaissue https://gitea.example.com owner/repo#1` | `#giteapr https://gitea.example.com owner/repo#1` | `#giteareadme https://gitea.example.com owner/repo` | `#giteasub https://gitea.example.com owner/repo` |
+
+只填仓库时，Issue / PR 命令会返回开启编号列表：
+
+```text
+#githubissue owner/repo
+#githubpr owner/repo
+```
+
+编号连续时会压缩显示：
+
+```text
+1~4, 8, 10~12
+```
+
+## 订阅推送
+
+订阅目标由命令发送位置决定：
+
+| 发送位置 | 推送目标 |
+| --- | --- |
+| 群聊 | 当前群 |
+| 私聊 | 当前好友 |
+
+订阅数据按仓库 key 保存：
+
+```text
+github:owner/repo
+gitee:owner/repo
+gitcode:owner/repo
+gitea:https://gitea.example.com:owner/repo
+```
+
+轮询配置：
+
+```yaml
+pollingEnabled: true
+checkIntervalMinutes: 30
+```
+
+Webhook 实时推送需要在平台仓库页面添加 webhook。多个平台、多个仓库可以共用同一个插件 webhook URL；每个仓库需要在对应平台单独添加一次。
+
+## 数据文件
+
+运行数据写入 `plugins/Git-Plugin/data/`：
+
+| 文件 | 内容 |
+| --- | --- |
+| `subscriptions.json` | 仓库订阅 |
+| `defaultRepos.json` | 当前会话默认仓库 |
+| `linkSettings.json` | 当前会话链接解析开关 |
+| `lastCheck.json` | 轮询检查时间戳 |
+
+`data/` 与 `config/config/` 默认被 git 忽略。
+
+## 目录结构
+
+```text
+apps/                    命令入口
+components/config.js     配置读取
+model/providers/         平台 Provider
+model/formatters/        消息格式化
+model/repoParser.js      仓库参数解析
+model/repoStore.js       订阅和默认仓库存储
+model/pollingService.js  轮询推送
+model/webhookServer.js   Webhook 接收
+```
+
+## 开发说明
+
+新增平台时：
+
+1. 新增 `model/providers/*Provider.js`
+2. 在 `model/platform.js` 注册平台名和显示名
+3. 在 `model/providers/index.js` 注册 Provider
+4. 在命令层补充平台直达命令
+5. 在 README 和 `WEBHOOK_EVENTS.md` 补充说明
+
+平台 API 差异放在 Provider 内，命令层只解析消息并调用统一接口。

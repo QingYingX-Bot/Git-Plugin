@@ -26,7 +26,8 @@ export class GiteaProvider {
 
   async listIssues(ref, options = {}) {
     this.assertInstance();
-    const data = await this.get(`/repos/${this.repoPath(ref)}/issues`, { state: options.state || 'all', limit: options.perPage || 10 });
+    const query = { state: options.state || 'all', limit: options.perPage || 10, page: options.page || 1 };
+    const data = await this.get(`/repos/${this.repoPath(ref)}/issues`, query);
     return Array.isArray(data) ? data.map(item => normalizeIssue(this.platform, item, this.withFallback(ref))) : [];
   }
 
@@ -38,7 +39,8 @@ export class GiteaProvider {
 
   async listPulls(ref, options = {}) {
     this.assertInstance();
-    const data = await this.get(`/repos/${this.repoPath(ref)}/pulls`, { state: options.state || 'all', limit: options.perPage || 10 });
+    const query = { state: options.state || 'all', limit: options.perPage || 10, page: options.page || 1 };
+    const data = await this.get(`/repos/${this.repoPath(ref)}/pulls`, query);
     return Array.isArray(data) ? data.map(item => normalizePull(this.platform, item, this.withFallback(ref))) : [];
   }
 

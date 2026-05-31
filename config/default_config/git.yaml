@@ -1,32 +1,68 @@
+# 默认平台。通用命令未指定平台时使用。
 defaultPlatform: github
+
+# 是否自动解析消息中的仓库链接。
 autoResolveLinks: true
+
+# 是否开启订阅轮询。Webhook 可实时推送，轮询用于兜底和不配置 webhook 的仓库。
 pollingEnabled: true
+
+# 轮询间隔，单位分钟。
 checkIntervalMinutes: 30
+
+# 是否把 owner/repo 转成小写用于订阅匹配。
 useLowercaseRepo: true
+
+# API 请求超时时间，单位毫秒。
 requestTimeoutMs: 15000
 
+# 各平台 API 配置。公开仓库可以不填 token，私有仓库和高频查询建议填写。
 providers:
   github:
+    # GitHub fine-grained PAT 建议权限：Contents / Issues / Pull requests 只读。
     token: ""
     apiBase: "https://api.github.com"
     webBase: "https://github.com"
   gitee:
+    # Gitee 私人令牌，建议只给仓库 / Issue / PR 读权限。
     token: ""
     apiBase: "https://gitee.com/api/v5"
     webBase: "https://gitee.com"
   gitcode:
+    # GitCode access token，建议只给仓库 / Issue / PR 读权限。
     token: ""
     apiBase: "https://api.gitcode.com/api/v5"
     webBase: "https://gitcode.com"
   gitea:
     instances:
       default:
+        # Gitea 实例地址，例如 https://gitea.example.com。
         baseUrl: ""
+        # Gitea access token，建议只给 repository / issue 读权限。
         token: ""
 
+# Webhook 服务配置。平台侧 Payload URL 示例：http://host:6192/git/webhook。
 webhook:
+  # 是否启动 webhook 接收服务。
   enabled: false
+
+  # 监听地址。0.0.0.0 表示允许外部访问。
   host: "0.0.0.0"
+
+  # 监听端口。
   port: 6192
+
+  # Webhook 路径。
   path: "/git/webhook"
+
+  # Webhook secret。建议填写随机字符串，并与平台侧 Secret 保持一致。
   secret: ""
+
+  # 是否推送 Issues / PR 的 closed 事件。默认过滤关闭事件。
+  pushClosedEvents: false
+
+  # 允许推送的事件类型。详见 WEBHOOK_EVENTS.md。
+  # 支持：issues、pull_requests。
+  allowedEventTypes:
+    - issues
+    - pull_requests

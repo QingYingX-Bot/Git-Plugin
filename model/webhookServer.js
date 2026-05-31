@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import express from 'express';
 import { notifySubscribers } from './notifier.js';
-import { makeRepoKey, normalizeRepoSlug, splitFullName } from './platform.js';
+import { getPlatformLabel, makeRepoKey, normalizeRepoSlug, splitFullName } from './platform.js';
 import { RepoStore } from './repoStore.js';
 
 let server = null;
@@ -45,50 +45,163 @@ export const stopWebhookService = () => {
 
 const dispatchWebhook = async (req, config) => {
   const platform = detectPlatform(req);
+  if (!isAllowedWebhookEvent(req, config)) return;
+  if (shouldSkipWebhook(req, config)) return;
   const ref = getWebhookRef(platform, req.body, config);
   if (!ref) return;
   const key = makeRepoKey(ref);
   const item = new RepoStore().findSubscription(key);
   if (!item) return;
-  await notifySubscribers(item.subscribers, formatWebhookMessage(platform, key, req));
+  await notifySubscribers(item.subscribers, formatWebhookMessage(platform, ref.displayName || ref.fullName, req));
 };
 
 const detectPlatform = req => {
   const header = name => String(req.get(name) || '').toLowerCase();
-  if (header('x-github-event')) return 'github';
+  if (header('x-gitea-event') || header('x-gogs-event')) return 'gitea';
   if (header('x-gitee-event')) return 'gitee';
   if (header('x-gitcode-event')) return 'gitcode';
-  if (header('x-gitea-event')) return 'gitea';
+  if (header('x-github-event')) return 'github';
   return String(req.query.platform || req.body?.platform || '').toLowerCase();
 };
 
+const isAllowedWebhookEvent = (req, config) => {
+  const allowed = normalizeAllowedTypes(config.webhook?.allowedEventTypes);
+  return allowed.includes(getWebhookEventType(req));
+};
+
+const normalizeAllowedTypes = value => {
+  const items = Array.isArray(value) ? value : ['issues', 'pull_requests'];
+  return items.map(canonicalEventType).filter(Boolean);
+};
+
+const canonicalEventType = value => {
+  const type = normalizeEventText(value).replace(/\s+/g, '_');
+  if (['issue', 'issues'].includes(type)) return 'issues';
+  if (['pr', 'pull_request', 'pull_requests', 'merge_request', 'merge_requests'].includes(type)) return 'pull_requests';
+  return type;
+};
+
+const getWebhookEventType = req => {
+  const event = normalizeEventText(getWebhookEvent(req));
+  const object = req.body?.object_attributes || {};
+  const objectText = normalizeEventText([
+    req.body?.object_kind,
+    req.body?.hook_name,
+    object.noteable_type,
+    object.target_type
+  ].filter(Boolean).join(' '));
+
+  if (req.body?.pull_request || req.body?.issue?.pull_request || event.includes('pull')
+    || event.includes('merge request') || objectText.includes('merge request')) {
+    return 'pull_requests';
+  }
+  if (req.body?.issue || event.includes('issue') || objectText.includes('issue')) return 'issues';
+  return '';
+};
+
+const getWebhookEvent = req => {
+  return req.get('x-gitea-event') || req.get('x-gogs-event') || req.get('x-gitee-event')
+    || req.get('x-gitcode-event') || req.get('x-github-event') || 'event';
+};
+
+const normalizeEventText = value => String(value || '').toLowerCase().replace(/[_-]/g, ' ');
+
+const shouldSkipWebhook = (req, config) => {
+  if (config.webhook?.pushClosedEvents) return false;
+  return getWebhookActionValues(req).some(value => ['closed', 'close'].includes(value));
+};
+
+const getWebhookAction = req => {
+  return getWebhookActionValues(req)[0] || '';
+};
+
+const getWebhookActionValues = req => {
+  const object = req.body?.object_attributes || {};
+  return [req.body?.action, object.action, object.state]
+    .map(value => String(value || '').trim().toLowerCase())
+    .filter(Boolean);
+};
+
 const getWebhookRef = (platform, payload, config) => {
-  const repo = payload?.repository || payload?.project;
-  const fullName = normalizeRepoSlug(repo?.full_name || repo?.path_with_namespace, config.useLowercaseRepo);
+  const repo = pickRepoPayload(payload, config);
+  const displayName = resolveRepoFullName(repo, false);
+  const fullName = normalizeRepoSlug(displayName, config.useLowercaseRepo);
   if (!platform || !fullName) return null;
   const { owner, repo: repoName } = splitFullName(fullName);
   const instance = platform === 'gitea' ? resolveGiteaInstance(repo, config) : '';
-  return { platform, instance, owner, repo: repoName, fullName };
+  return { platform, instance, owner, repo: repoName, fullName, displayName };
 };
 
 const formatWebhookMessage = (platform, key, req) => {
-  const event = req.get('x-github-event') || req.get('x-gitee-event') || req.get('x-gitcode-event') || req.get('x-gitea-event') || 'event';
-  const action = req.body?.action ? ` ${req.body.action}` : '';
-  const title = req.body?.issue?.title || req.body?.pull_request?.title || req.body?.head_commit?.message || '';
-  const url = req.body?.issue?.html_url || req.body?.pull_request?.html_url || req.body?.repository?.html_url || req.body?.project?.web_url || '';
-  return [`[Git Webhook] ${key}`, `平台: ${platform}`, `事件: ${event}${action}`, title ? `标题: ${title}` : '', url ? `链接: ${url}` : ''].filter(Boolean).join('\n');
+  const event = getWebhookEvent(req);
+  const object = req.body?.object_attributes || {};
+  const action = getWebhookAction(req);
+  const actionText = action ? ` ${action}` : '';
+  const title = req.body?.issue?.title || req.body?.pull_request?.title || object.title || req.body?.head_commit?.message || '';
+  const url = req.body?.issue?.html_url || req.body?.pull_request?.html_url || object.url
+    || req.body?.repository?.html_url || req.body?.repository?.homepage || req.body?.project?.web_url || '';
+  return [
+    `[${getPlatformLabel(platform)} ${formatEventName(event, getWebhookEventType(req))}] ${key}`,
+    `事件: ${event}${actionText}`,
+    title ? `标题: ${title}` : '',
+    url ? `链接: ${url}` : ''
+  ].filter(Boolean).join('\n');
+};
+
+const formatEventName = (event, type = '') => {
+  if (type === 'issues') return 'Issues';
+  if (type === 'pull_requests') return 'Pull Request';
+  const normalized = normalizeEventText(event);
+  if (normalized.includes('issue') && (normalized.includes('comment') || normalized.includes('note'))) return 'Issue Comment';
+  if (normalized.includes('pull') || normalized.includes('merge request')) return 'Pull Request';
+  if (normalized.includes('issue')) return 'Issues';
+  if (normalized.includes('push')) return 'Push';
+  if (normalized.includes('release')) return 'Release';
+  if (normalized.includes('star') || normalized.includes('watch')) return 'Star';
+  return String(event || 'Event').replace(/\bhook\b/ig, '').trim().replace(/\b\w/g, char => char.toUpperCase()) || 'Event';
 };
 
 const verifySecret = (req, secret) => {
   if (!secret) return true;
-  const githubSig = req.get('x-hub-signature-256');
-  if (githubSig) {
-    const expected = `sha256=${crypto.createHmac('sha256', secret).update(req.rawBody || '').digest('hex')}`;
-    if (Buffer.byteLength(githubSig) !== Buffer.byteLength(expected)) return false;
-    return crypto.timingSafeEqual(Buffer.from(githubSig), Buffer.from(expected));
-  }
-  const token = req.get('x-gitee-token') || req.get('x-gitcode-token') || req.get('x-gitea-token') || req.query.secret;
+  const prefixedSig = req.get('x-hub-signature-256') || req.get('x-gitcode-signature-256');
+  if (prefixedSig && verifyHmac(req.rawBody, secret, prefixedSig, 'sha256=')) return true;
+
+  const plainSig = req.get('x-gitea-signature') || req.get('x-gogs-signature');
+  if (plainSig && verifyHmac(req.rawBody, secret, plainSig)) return true;
+
+  const token = req.get('x-gitee-token') || req.get('x-gitcode-token') || req.get('x-gitlab-token')
+    || req.get('x-gitea-token') || req.query.secret;
   return token === secret;
+};
+
+const verifyHmac = (rawBody, secret, signature, prefix = '') => {
+  const expected = `${prefix}${crypto.createHmac('sha256', secret).update(rawBody || '').digest('hex')}`;
+  const actual = String(signature || '').trim();
+  if (Buffer.byteLength(actual) !== Buffer.byteLength(expected)) return false;
+  return crypto.timingSafeEqual(Buffer.from(actual), Buffer.from(expected));
+};
+
+const pickRepoPayload = (payload, config) => {
+  const candidates = [payload?.repository, payload?.project, payload?.issue?.repository, payload?.pull_request?.base?.repo];
+  return candidates.find(item => resolveRepoFullName(item, config.useLowercaseRepo)) || candidates.find(Boolean) || {};
+};
+
+const resolveRepoFullName = (repo, useLowercase = true) => {
+  const direct = repo?.full_name || repo?.path_with_namespace;
+  const fromNamespace = repo?.namespace && repo?.name ? `${repo.namespace}/${repo.name}` : '';
+  return normalizeRepoSlug(direct || fromNamespace || slugFromUrl(repo), useLowercase);
+};
+
+const slugFromUrl = repo => {
+  const value = repo?.html_url || repo?.web_url || repo?.homepage || repo?.git_http_url || repo?.http_url || repo?.url;
+  try {
+    const parts = new URL(value).pathname.replace(/\.git$/i, '').split('/').filter(Boolean);
+    if (parts.length >= 2) return parts.slice(-2).join('/');
+  } catch {
+    const match = String(value || '').match(/:([^/:]+\/[^/]+?)(?:\.git)?$/);
+    if (match) return match[1];
+  }
+  return '';
 };
 
 const normalizePath = value => {
