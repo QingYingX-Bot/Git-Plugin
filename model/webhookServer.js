@@ -3,6 +3,7 @@ import express from 'express';
 import { notifySubscribers } from './notifier.js';
 import { getPlatformLabel, makeRepoKey, normalizeRepoSlug, splitFullName } from './platform.js';
 import { RepoStore } from './repoStore.js';
+import { buildWebhookPushMessage } from './webhookPush.js';
 
 let server = null;
 
@@ -52,7 +53,8 @@ const dispatchWebhook = async (req, config) => {
   const key = makeRepoKey(ref);
   const item = new RepoStore().findSubscription(key);
   if (!item) return;
-  await notifySubscribers(item.subscribers, formatWebhookMessage(platform, ref.displayName || ref.fullName, req));
+  const message = await formatWebhookMessage(platform, ref.displayName || ref.fullName, req);
+  await notifySubscribers(item.subscribers, message);
 };
 
 const detectPlatform = req => {
@@ -70,7 +72,7 @@ const isAllowedWebhookEvent = (req, config) => {
 };
 
 const normalizeAllowedTypes = value => {
-  const items = Array.isArray(value) ? value : ['issues', 'pull_requests'];
+  const items = Array.isArray(value) ? value : ['issues', 'pull_requests', 'push'];
   return items.map(canonicalEventType).filter(Boolean);
 };
 
@@ -78,6 +80,7 @@ const canonicalEventType = value => {
   const type = normalizeEventText(value).replace(/\s+/g, '_');
   if (['issue', 'issues'].includes(type)) return 'issues';
   if (['pr', 'pull_request', 'pull_requests', 'merge_request', 'merge_requests'].includes(type)) return 'pull_requests';
+  if (['push', 'push_hook', 'push_events'].includes(type)) return 'push';
   return type;
 };
 
@@ -96,6 +99,8 @@ const getWebhookEventType = req => {
     return 'pull_requests';
   }
   if (req.body?.issue || event.includes('issue') || objectText.includes('issue')) return 'issues';
+  if (event.includes('tag push') || objectText.includes('tag push')) return 'tag_push';
+  if (event.includes('push') || objectText.includes('push') || (req.body?.ref && Array.isArray(req.body?.commits))) return 'push';
   return '';
 };
 
@@ -132,7 +137,11 @@ const getWebhookRef = (platform, payload, config) => {
   return { platform, instance, owner, repo: repoName, fullName, displayName };
 };
 
-const formatWebhookMessage = (platform, key, req) => {
+const formatWebhookMessage = async (platform, key, req) => {
+  if (getWebhookEventType(req) === 'push') {
+    return buildWebhookPushMessage(platform, key, req.body, getWebhookEvent(req));
+  }
+
   const event = getWebhookEvent(req);
   const object = req.body?.object_attributes || {};
   const action = getWebhookAction(req);
