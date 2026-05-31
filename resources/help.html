@@ -67,54 +67,82 @@
     .platforms {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 14px;
+      gap: 12px;
       margin-top: 30px;
     }
 
     .platform {
       min-width: 0;
-      padding: 18px;
+      min-height: 118px;
+      padding: 16px;
       border: 1px solid rgba(32, 37, 45, 0.08);
       border-radius: 8px;
       background: #fff;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
     }
 
     .platform-head {
       display: flex;
       align-items: center;
       gap: 10px;
-      font-size: 22px;
-      font-weight: 740;
     }
 
     .platform-icon {
       display: grid;
       place-items: center;
-      width: 28px;
-      height: 28px;
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
       color: #20252d;
+      background: #f0f3f6;
+      flex: 0 0 auto;
     }
 
     .platform-icon svg {
-      width: 24px;
-      height: 24px;
+      width: 21px;
+      height: 21px;
       display: block;
     }
 
+    .platform-name {
+      min-width: 0;
+      color: #20252d;
+      font-size: 21px;
+      line-height: 1;
+      font-weight: 760;
+      overflow-wrap: anywhere;
+    }
+
     .platform-code {
-      margin-top: 12px;
-      color: #697383;
-      font-size: 15px;
+      margin-top: 14px;
+      padding: 11px 12px;
+      border-radius: 6px;
+      background: #f5f7f9;
+      color: #4f5d70;
+      font-size: 14px;
       line-height: 1.35;
       overflow-wrap: anywhere;
     }
 
+    .platform-command {
+      display: block;
+      color: #20252d;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-weight: 760;
+    }
+
+    .platform-target {
+      display: block;
+      margin-top: 4px;
+    }
+
     .sections {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
       margin-top: 28px;
-      align-items: start;
     }
 
     .section {
@@ -126,11 +154,17 @@
     }
 
     .section-title {
-      margin: 0 0 18px;
+      margin: 0 0 16px;
       font-size: 28px;
       line-height: 1;
       font-weight: 780;
       letter-spacing: 0;
+    }
+
+    .command-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0 28px;
     }
 
     .command {
@@ -138,7 +172,7 @@
       border-top: 1px solid rgba(32, 37, 45, 0.08);
     }
 
-    .command:first-of-type {
+    .command:nth-child(-n + 2) {
       border-top: 0;
       padding-top: 0;
     }
@@ -173,6 +207,15 @@
       line-height: 1;
       font-weight: 780;
       letter-spacing: 0;
+    }
+
+    .section.compact .command-list {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .section.compact .command:nth-child(-n + 3) {
+      border-top: 0;
+      padding-top: 0;
     }
 
     .tip {
@@ -220,23 +263,28 @@
       <div class="platform">
         <div class="platform-head">
           <span class="platform-icon">{{@ platform.iconSvg}}</span>
-          <span>{{platform.name}}</span>
+          <span class="platform-name">{{platform.name}}</span>
         </div>
-        <div class="platform-code">{{platform.example}}</div>
+        <div class="platform-code">
+          <span class="platform-command">{{platform.command}}</span>
+          <span class="platform-target">{{platform.target}}</span>
+        </div>
       </div>
       {{/each}}
     </section>
 
     <main class="sections">
       {{each help.groups group}}
-      <section class="section">
+      <section class="section {{group.compact ? 'compact' : ''}}">
         <h2 class="section-title">{{group.title}}</h2>
+        <div class="command-list">
         {{each group.items item}}
         <div class="command">
           <div class="code">{{item.command}}</div>
           <div class="desc">{{item.description}}</div>
         </div>
         {{/each}}
+        </div>
       </section>
       {{/each}}
     </main>

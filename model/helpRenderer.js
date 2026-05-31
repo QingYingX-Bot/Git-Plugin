@@ -11,10 +11,10 @@ const ICON_FILES = {
 };
 
 const PLATFORMS = [
-  { id: 'github', name: 'GitHub', example: '#githubrepo owner/repo' },
-  { id: 'gitee', name: 'Gitee', example: '#giteerepo owner/repo' },
-  { id: 'gitcode', name: 'GitCode', example: '#gitcoderepo owner/repo' },
-  { id: 'gitea', name: 'Gitea', example: '#gitearepo https://gitea.example.com owner/repo' }
+  { id: 'github', name: 'GitHub', command: '#githubrepo', target: 'owner/repo' },
+  { id: 'gitee', name: 'Gitee', command: '#giteerepo', target: 'owner/repo' },
+  { id: 'gitcode', name: 'GitCode', command: '#gitcoderepo', target: 'owner/repo' },
+  { id: 'gitea', name: 'Gitea', command: '#gitearepo', target: 'https://gitea.example.com owner/repo' }
 ];
 
 const GROUPS = [
@@ -32,6 +32,7 @@ const GROUPS = [
   },
   {
     title: '订阅',
+    compact: true,
     items: [
       ['#gitsub github owner/repo', '订阅仓库推送'],
       ['#gitunsub github owner/repo', '取消仓库订阅'],
@@ -42,6 +43,7 @@ const GROUPS = [
   },
   {
     title: '设置',
+    compact: true,
     items: [
       ['#gitdefault github owner/repo', '设置默认仓库'],
       ['#githubdefault', '查看 GitHub 默认仓库'],
@@ -56,7 +58,7 @@ const TIPS = [
   '通用命令第一个参数填写平台：github / gitee / gitcode / gitea。',
   'Gitea 需要带实例地址，例如 https://gitea.example.com。',
   'Issue / PR 只填仓库时，会返回开启编号列表，连续编号会合并为 1~4。',
-  'Webhook 默认只推送 Issues 和 PR，closed 事件由配置项控制。',
+  'Webhook 默认推送 Issues、PR 和 Push，closed 事件由配置项控制。',
   'GitHub 卡片可选择官方 OpenGraph 或插件统一模板。'
 ];
 
