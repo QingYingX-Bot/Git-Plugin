@@ -10,14 +10,15 @@ webhook:
   allowedEventTypes:
     - issues
     - pull_requests
+    - push
 ```
 
-当前插件默认只推送 Issues / PR 相关事件。其他事件会被接收并过滤。
+当前插件默认推送 Issues / PR / Push 相关事件。其他事件会被接收并过滤。
 
 | 配置项 | 默认值 | 说明 |
 | --- | --- | --- |
 | `pushClosedEvents` | `false` | 是否推送 Issues / PR 的 closed 事件 |
-| `allowedEventTypes` | `issues`, `pull_requests` | 当前允许推送的事件类型 |
+| `allowedEventTypes` | `issues`, `pull_requests`, `push` | 当前允许推送的事件类型 |
 
 `allowedEventTypes` 当前支持：
 
@@ -25,6 +26,7 @@ webhook:
 | --- | --- | --- |
 | `issues` | Issues 相关事件 | `issue` |
 | `pull_requests` | PR / Merge Request 相关事件 | `pr`, `pull_request`, `merge_request`, `merge_requests` |
+| `push` | 分支 Push 相关事件 | `push_hook`, `push_events` |
 
 ## 默认会推送
 
@@ -35,6 +37,7 @@ webhook:
 | `pull_requests` | `pull_request`, `Merge Request Hook` | 新建、重开、更新、同步提交、请求评审、合并等 PR/MR 事件 | 推送 |
 | `pull_requests` | `pull_request_review` | PR 评审提交、通过、要求修改等 | 推送 |
 | `pull_requests` | `pull_request_review_comment`, `Note Hook` | PR 代码评论、PR 评论 | 推送 |
+| `push` | `push`, `Push Hook` | 分支收到 commit 推送 | 推送 |
 
 ## 默认过滤的 Closed 事件
 
@@ -54,13 +57,13 @@ webhook:
 
 ## 其他常见事件列表
 
-下面这些事件是平台可能发送的其他 webhook 事件。当前默认配置会过滤它们。
+下面这些事件是平台可能发送的其他 webhook 事件。当前默认配置会过滤未列入 `allowedEventTypes` 的事件。
 
 ### 仓库与代码
 
 | 事件名 | 常见平台 | 含义 | 当前默认行为 |
 | --- | --- | --- | --- |
-| `push`, `Push Hook` | GitHub / Gitee / GitCode / Gitea | 分支收到 commit 推送 | 过滤 |
+| `push`, `Push Hook` | GitHub / Gitee / GitCode / Gitea | 分支收到 commit 推送 | 推送 |
 | `create` | GitHub / Gitea | 创建分支或标签 | 过滤 |
 | `delete` | GitHub / Gitea | 删除分支或标签 | 过滤 |
 | `tag_push`, `Tag Push Hook` | Gitee / GitCode | 标签创建、更新或删除 | 过滤 |
@@ -144,7 +147,7 @@ webhook:
 
 ## 推荐平台勾选
 
-只想推送 Issues 和 PR 时，平台 webhook 页面建议勾选：
+默认推送 Issues、PR 和 Push 时，平台 webhook 页面建议勾选：
 
 | 类型 | 建议 |
 | --- | --- |
@@ -152,7 +155,7 @@ webhook:
 | Pull requests / Merge requests | 勾选 |
 | Issue comments / Notes | 需要评论推送时勾选 |
 | Pull request comments / Reviews | 需要 PR 评论或评审推送时勾选 |
-| Push | 不勾选 |
+| Push | 勾选 |
 | Stars / Forks / Releases / Workflows | 不勾选 |
 
-GitHub 选择 `Send me everything` 时，插件仍会按 `allowedEventTypes` 过滤非 Issues / PR 事件。
+GitHub 选择 `Send me everything` 时，插件仍会按 `allowedEventTypes` 过滤非 Issues / PR / Push 事件。

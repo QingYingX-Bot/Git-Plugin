@@ -16,6 +16,22 @@ useLowercaseRepo: true
 # API 请求超时时间，单位毫秒。
 requestTimeoutMs: 15000
 
+# 网络代理，影响平台 API 请求和 README / Issue / PR 正文图片本地下载。
+# 留空表示使用系统默认网络；需要代理时可填写 http://127.0.0.1:7890。
+proxy: ""
+
+# 是否输出渲染图片下载开始/成功日志。排查下载慢时开启；失败日志始终输出 warn。
+renderImageDownloadLog: false
+
+# README 渲染配置。
+readme:
+  # 是否把长 README 分割成多张图片。关闭后生成单张长图。
+  multiPage: false
+  # 分割模式下每张图片高度。
+  multiPageHeight: 3800
+  # README 截图页面加载超时时间，单位毫秒。长 README / 大图较多时可调大。
+  pageGotoTimeoutMs: 180000
+
 # 仓库链接卡片配置。
 card:
   # GitHub 卡片模式：
@@ -70,7 +86,8 @@ webhook:
   pushClosedEvents: false
 
   # 允许推送的事件类型。详见 WEBHOOK_EVENTS.md。
-  # 支持：issues、pull_requests。
+  # 支持：issues、pull_requests、push。
   allowedEventTypes:
     - issues
     - pull_requests
+    - push
