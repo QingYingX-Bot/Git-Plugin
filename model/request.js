@@ -1,4 +1,8 @@
 import fetch from 'node-fetch';
+import fs from 'node:fs';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { getGitConfig } from '../components/config.js';
 
 export class ApiRequestError extends Error {
   constructor(message, detail = {}) {
@@ -28,11 +32,13 @@ export const requestJson = async (url, options = {}) => {
   const requestUrl = appendQuery(url, options.query);
 
   try {
+    const dispatcher = await getProxyDispatcher();
     const response = await fetch(requestUrl, {
       method: options.method || 'GET',
       headers: options.headers || {},
       body: options.body,
-      signal: controller.signal
+      signal: controller.signal,
+      ...(dispatcher ? { dispatcher } : {})
     });
     const text = await response.text();
     const contentType = response.headers.get('content-type') || '';
@@ -50,9 +56,47 @@ export const requestJson = async (url, options = {}) => {
     return { data, headers: response.headers, status: response.status };
   } catch (err) {
     if (err instanceof ApiRequestError) throw err;
-    const message = err.name === 'AbortError' ? '接口请求超时' : `接口请求异常: ${err.message}`;
+    const message = err.name === 'AbortError' ? '接口请求超时' : `接口请求异常: ${formatFetchError(err)}`;
     throw new ApiRequestError(message, { platform: options.platform, url: requestUrl });
   } finally {
     clearTimeout(timer);
   }
+};
+
+const getProxyDispatcher = async () => {
+  try {
+    const proxy = String(getGitConfig()?.proxy || '').trim();
+    if (!proxy) return undefined;
+    const { ProxyAgent } = await loadUndici();
+    return new ProxyAgent(proxy);
+  } catch {
+    return undefined;
+  }
+};
+
+const loadUndici = async () => {
+  try {
+    return await import('undici');
+  } catch (err) {
+    const file = findPnpmUndici();
+    if (!file) throw err;
+    return import(pathToFileURL(file).href);
+  }
+};
+
+const findPnpmUndici = () => {
+  const store = path.join(process.cwd(), 'node_modules', '.pnpm');
+  if (!fs.existsSync(store)) return '';
+  const dir = fs.readdirSync(store)
+    .filter(name => name.startsWith('undici@'))
+    .sort()
+    .at(-1);
+  const file = dir ? path.join(store, dir, 'node_modules', 'undici', 'index.js') : '';
+  return file && fs.existsSync(file) ? file : '';
+};
+
+const formatFetchError = err => {
+  const message = String(err?.message || err || '').trim();
+  const cause = String(err?.cause?.message || '').trim();
+  return cause && cause !== message ? `${message}: ${cause}` : message;
 };

@@ -35,10 +35,15 @@ export class GitCardApp extends plugin {
       }
       const repo = await provider.getRepo(ref);
       const img = await renderRepoCard(repo);
-      await e.reply(img || formatRepo(repo), true);
+      await e.reply(img || withoutLink(formatRepo(repo)), true);
     } catch (err) {
       await replyError(e, '解析仓库链接失败', err);
     }
     return true;
   }
 }
+
+const withoutLink = text => String(text || '')
+  .split('\n')
+  .filter(line => !line.startsWith('链接: '))
+  .join('\n');

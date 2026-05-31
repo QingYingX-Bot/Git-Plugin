@@ -98,6 +98,7 @@ export const normalizeReadme = (platform, data = {}, fallback = {}) => {
     repo: fallback.fullName || '',
     name: text(data.name || fallback.name || 'README.md'),
     content,
+    html: text(data.html || data.rendered_html || fallback.html),
     webUrl: firstUrl(data.html_url, data.web_url, data.download_url),
     raw: data
   };

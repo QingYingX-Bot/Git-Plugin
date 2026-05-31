@@ -5,6 +5,9 @@ import { formatPull } from '../model/formatters/pull.js';
 import { formatRateLimit } from '../model/formatters/rateLimit.js';
 import { formatReadme } from '../model/formatters/readme.js';
 import { formatRepo } from '../model/formatters/repo.js';
+import { renderIssueCard, renderNumberListCard, renderPullCard } from '../model/issuePrRenderer.js';
+import { renderReadmeCard } from '../model/readmeRenderer.js';
+import { renderRepoCard } from '../model/cardRenderer.js';
 import { parseNumberTarget, parseRepoTarget, stripCommand } from '../model/repoParser.js';
 import { commandPlatform, currentOrigin, findDefaultRef, providerFor, replyError, runtime } from './helper.js';
 
@@ -38,7 +41,8 @@ export class GitQueryApp extends plugin {
     if (!ref) return e.reply('请输入仓库，例如 #gitrepo github owner/repo', true);
     try {
       const repo = await providerFor(ref, config).getRepo(ref);
-      return e.reply(formatRepo(repo), true);
+      const img = await renderRepoCard(repo);
+      return e.reply(replyWithUrl(img, formatRepo(repo), repo.webUrl), true);
     } catch (err) {
       return replyError(e, '查询仓库失败', err);
     }
@@ -46,24 +50,30 @@ export class GitQueryApp extends plugin {
 
   async issue(e) {
     return this.numberQuery(e, ISSUE_COMMANDS, 'Issue', async (provider, ref, number) => {
-      return formatIssue(await provider.getIssue(ref, number));
+      const issue = await provider.getIssue(ref, number);
+      const img = await renderIssueCard(issue);
+      return replyWithUrl(img, formatIssue(issue), issue.webUrl);
     }, async (provider, ref) => {
       const result = await this.collectOpenItems(provider, 'listIssues', ref, item => !item.isPull);
-      return formatNumberList(ref, 'Issue', result.items, result);
+      const img = await renderNumberListCard(ref, 'Issue', result.items, result);
+      return img || formatNumberList(ref, 'Issue', result.items, result);
     });
   }
 
   async pull(e) {
     return this.numberQuery(e, PR_COMMANDS, 'PR', async (provider, ref, number) => {
       try {
-        return formatPull(await provider.getPull(ref, number));
+        const pull = await provider.getPull(ref, number);
+        const img = await renderPullCard(pull);
+        return replyWithUrl(img, formatPull(pull), pull.webUrl);
       } catch (err) {
         if (err?.status === 404) return this.formatPullNotFound(provider, ref, number);
         throw err;
       }
     }, async (provider, ref) => {
       const result = await this.collectOpenItems(provider, 'listPulls', ref);
-      return formatNumberList(ref, 'PR', result.items, result);
+      const img = await renderNumberListCard(ref, 'PR', result.items, result);
+      return img || formatNumberList(ref, 'PR', result.items, result);
     });
   }
 
@@ -76,7 +86,8 @@ export class GitQueryApp extends plugin {
     if (!ref) return e.reply('请输入仓库，例如 #gitreadme github owner/repo', true);
     try {
       const readme = await providerFor(ref, config).getReadme(ref);
-      return e.reply(formatReadme(readme), true);
+      const img = await renderReadmeCard(readme);
+      return e.reply(replyWithUrl(img, formatReadme(readme), readme.webUrl), true);
     } catch (err) {
       return replyError(e, '查询 README 失败', err);
     }
@@ -155,3 +166,10 @@ export class GitQueryApp extends plugin {
     return lines.join('\n');
   }
 }
+
+const replyWithUrl = (img, text, url) => {
+  if (!img) return text;
+  const link = String(url || '').trim();
+  if (Array.isArray(img)) return link ? [...img, '\n', link] : img;
+  return link ? [img, '\n', link] : img;
+};

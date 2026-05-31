@@ -26,7 +26,12 @@ export const renderRepoCard = async repo => {
     quality: 100,
     repo: toCardData(repo)
   };
-  return puppeteer.screenshot('Git-Plugin/repo-card', data);
+  try {
+    return await puppeteer.screenshot('Git-Plugin/repo-card', data);
+  } catch (err) {
+    logger.error(`[Git-Plugin] 渲染仓库卡片失败: ${err?.message || err}`);
+    return false;
+  }
 };
 
 const toCardData = repo => {

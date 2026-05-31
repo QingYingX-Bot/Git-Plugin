@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{card.kind}}</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      width: 1100px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+      color: #20252d;
+      background: #f5f7f9;
+    }
+
+    #container {
+      width: 1100px;
+      padding: 52px 58px 44px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.76)),
+        #f5f7f9;
+      border-bottom: 42px solid {{card.accent}};
+    }
+
+    .top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 30px;
+    }
+
+    .platform {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      color: {{card.accent}};
+      font-size: 24px;
+      font-weight: 760;
+      letter-spacing: 0;
+    }
+
+    .platform-icon {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      color: {{card.accent}};
+      background: {{card.accentSoft}};
+    }
+
+    .platform-icon svg {
+      width: 22px;
+      height: 22px;
+      display: block;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 14px;
+      border-radius: 999px;
+      color: {{card.status.color}};
+      background: {{card.status.soft}};
+      font-size: 22px;
+      font-weight: 760;
+    }
+
+    .status-dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 999px;
+      background: {{card.status.color}};
+    }
+
+    .headline {
+      margin-top: 34px;
+    }
+
+    .kind {
+      color: #687586;
+      font-size: 26px;
+      line-height: 1;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .title {
+      margin: 18px 0 0;
+      color: #20252d;
+      font-size: 48px;
+      line-height: 1.18;
+      font-weight: 780;
+      letter-spacing: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .fields {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 34px;
+    }
+
+    .field {
+      min-width: 0;
+      padding: 16px 18px;
+      border: 1px solid rgba(32, 37, 45, 0.08);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .field-label {
+      color: #687586;
+      font-size: 17px;
+      line-height: 1;
+    }
+
+    .field-value {
+      margin-top: 8px;
+      color: #20252d;
+      font-size: 20px;
+      line-height: 1.28;
+      font-weight: 720;
+      overflow-wrap: anywhere;
+    }
+
+    .body {
+      margin-top: 28px;
+      padding: 24px 26px;
+      border: 1px solid rgba(32, 37, 45, 0.08);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .body-title {
+      color: #20252d;
+      font-size: 24px;
+      line-height: 1;
+      font-weight: 760;
+    }
+
+    .body-text {
+      margin-top: 16px;
+      color: #505c6b;
+      font-size: 23px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .body-image {
+      display: block;
+      max-width: 100%;
+      max-height: 360px;
+      margin-top: 18px;
+      border-radius: 8px;
+      border: 1px solid rgba(32, 37, 45, 0.08);
+      object-fit: contain;
+      background: #f5f7f9;
+    }
+
+    .body-text + .body-image,
+    .body-image + .body-text {
+      margin-top: 18px;
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <div class="top">
+      <div class="platform">
+        <span class="platform-icon">{{@ card.platformIconSvg}}</span>
+        <span>{{card.platformLabel}}</span>
+      </div>
+      <div class="status"><span class="status-dot"></span>{{card.status.label}}</div>
+    </div>
+
+    <section class="headline">
+      <div class="kind">{{card.kind}}{{if card.item.number}} #{{card.item.number}}{{/if}}</div>
+      <h1 class="title">{{card.item.title}}</h1>
+    </section>
+
+    <section class="fields">
+      {{each card.item.fields field}}
+      <div class="field">
+        <div class="field-label">{{field.label}}</div>
+        <div class="field-value">{{field.value}}</div>
+      </div>
+      {{/each}}
+    </section>
+
+    <section class="body">
+      <div class="body-title">{{card.item.bodyTitle}}</div>
+      {{each card.item.bodyParts part}}
+        {{if part.type === 'image'}}
+        <img class="body-image" src="{{part.url}}" alt="" onerror="this.style.display='none';">
+        {{else}}
+        <div class="body-text">{{part.text}}</div>
+        {{/if}}
+      {{/each}}
+    </section>
+  </div>
+</body>
+</html>

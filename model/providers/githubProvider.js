@@ -62,7 +62,11 @@ export class GitHubProvider {
 
   async getReadme(ref) {
     const data = await this.get(`/repos/${this.repoPath(ref)}/readme`);
-    return normalizeReadme(this.platform, data, this.withFallback(ref));
+    const readme = normalizeReadme(this.platform, data, this.withFallback(ref));
+    if (!readme.content && data.download_url) {
+      readme.content = await this.getRawText(data.download_url).catch(() => '');
+    }
+    return readme;
   }
 
   async getRateLimit() {
@@ -87,6 +91,15 @@ export class GitHubProvider {
       query,
       timeoutMs: this.timeoutMs
     });
+  }
+
+  async getRawText(url) {
+    const { data } = await requestJson(url, {
+      platform: this.platform,
+      headers: { 'User-Agent': 'Yunzai-Git-Plugin' },
+      timeoutMs: this.timeoutMs
+    });
+    return typeof data === 'string' ? data : '';
   }
 
   repoPath(ref) {
