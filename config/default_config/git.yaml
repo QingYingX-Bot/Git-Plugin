@@ -16,6 +16,14 @@ useLowercaseRepo: true
 # API 请求超时时间，单位毫秒。
 requestTimeoutMs: 15000
 
+# 仓库链接卡片配置。
+card:
+  # GitHub 卡片模式：
+  # opengraph 使用 GitHub 官方 OpenGraph 图片；
+  # template 使用插件内置模板，四个平台统一风格；
+  # 内置模板右侧优先显示仓库所属账号/组织头像，平台标识使用本地 SVG。
+  githubMode: "opengraph"
+
 # 各平台 API 配置。公开仓库可以不填 token，私有仓库和高频查询建议填写。
 providers:
   github:

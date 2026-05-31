@@ -12,12 +12,22 @@ export const normalizeRepo = (platform, data = {}, fallback = {}) => {
   const owner = text(fallback.owner || data.owner?.login || data.owner?.name || data.namespace?.path);
   const repo = text(fallback.repo || data.name || data.path);
   const fullName = text(data.full_name || data.path_with_namespace || `${owner}/${repo}`);
+  const avatarUrl = firstUrl(
+    data.avatar_url,
+    data.owner?.avatar_url,
+    data.owner?.avatar,
+    data.namespace?.avatar_url,
+    data.namespace?.avatar,
+    data.creator?.avatar_url,
+    fallback.avatarUrl
+  );
   return {
     platform,
     instance: fallback.instance || '',
     owner,
     repo,
     fullName,
+    avatarUrl,
     description: text(data.description),
     defaultBranch: text(data.default_branch || data.defaultBranch),
     stars: number(data.stargazers_count ?? data.stars_count ?? data.star_count),

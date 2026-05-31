@@ -1,6 +1,7 @@
 import plugin from '../../../lib/plugins/plugin.js';
 import { segment } from 'oicq';
 import { formatRepo } from '../model/formatters/repo.js';
+import { renderRepoCard, shouldUseOpenGraphCard } from '../model/cardRenderer.js';
 import { parseRepoUrl } from '../model/repoParser.js';
 import { currentOrigin, providerFor, replyError, runtime } from './helper.js';
 
@@ -27,13 +28,14 @@ export class GitCardApp extends plugin {
 
     try {
       const provider = providerFor(ref, config);
-      const cardUrl = provider.buildCardUrl(ref);
-      if (cardUrl) {
+      if (shouldUseOpenGraphCard(ref, config)) {
+        const cardUrl = provider.buildCardUrl(ref);
         await e.reply(segment.image(cardUrl), true);
         return true;
       }
       const repo = await provider.getRepo(ref);
-      await e.reply(formatRepo(repo), true);
+      const img = await renderRepoCard(repo);
+      await e.reply(img || formatRepo(repo), true);
     } catch (err) {
       await replyError(e, '解析仓库链接失败', err);
     }

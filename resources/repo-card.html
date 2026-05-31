@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{repo.fullName}}</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      width: 1200px;
+      min-height: 630px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+      background: #f6f8fa;
+      color: #24292f;
+    }
+
+    #container {
+      position: relative;
+      width: 1200px;
+      height: 630px;
+      overflow: hidden;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,0.95), rgba(255,255,255,0.72)),
+        radial-gradient(circle at 82% 18%, rgba(47,111,237,0.12), transparent 24%),
+        #f6f8fa;
+      border-bottom: 54px solid {{repo.accent}};
+    }
+
+    .content {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 210px;
+      gap: 56px;
+      height: 576px;
+      padding: 78px 80px 48px;
+    }
+
+    .platform {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 26px;
+      color: {{repo.accent}};
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .platform-icon {
+      display: grid;
+      place-items: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 999px;
+      color: {{repo.accent}};
+      background: {{repo.accentSoft}};
+    }
+
+    .platform-icon svg {
+      width: 20px;
+      height: 20px;
+      display: block;
+    }
+
+    .title {
+      margin: 0;
+      max-width: 780px;
+      font-size: 62px;
+      line-height: 1.08;
+      font-weight: 760;
+      letter-spacing: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .desc {
+      max-width: 780px;
+      margin: 32px 0 0;
+      color: #6e7781;
+      font-size: 30px;
+      line-height: 1.55;
+      letter-spacing: 0;
+    }
+
+    .stats {
+      position: absolute;
+      left: 80px;
+      right: 80px;
+      bottom: 48px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(120px, 1fr));
+      gap: 22px;
+      max-width: 780px;
+    }
+
+    .stat {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+    }
+
+    .icon {
+      width: 34px;
+      height: 34px;
+      color: #6e7781;
+      flex: 0 0 auto;
+    }
+
+    .value {
+      font-size: 30px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .label {
+      margin-top: 7px;
+      color: #6e7781;
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .side {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      justify-content: space-between;
+      min-width: 0;
+    }
+
+    .badge {
+      display: grid;
+      place-items: center;
+      width: 200px;
+      height: 200px;
+      border-radius: 28px;
+      background: #fff;
+      border: 1px solid rgba(27, 31, 36, 0.08);
+      box-shadow: 0 18px 42px rgba(27, 31, 36, 0.08);
+      overflow: hidden;
+    }
+
+    .repo-avatar {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .badge-fallback {
+      display: grid;
+      place-items: center;
+      width: 100%;
+      height: 100%;
+      color: {{repo.accent}};
+    }
+
+    .badge-fallback svg {
+      width: 112px;
+      height: 112px;
+      display: block;
+    }
+
+    .badge-fallback.hidden {
+      display: none;
+    }
+
+    .meta {
+      max-width: 220px;
+      text-align: right;
+      color: #6e7781;
+      font-size: 20px;
+      line-height: 1.6;
+    }
+
+    .meta strong {
+      color: #24292f;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <main class="content">
+      <section>
+        <div class="platform"><span class="platform-icon">{{@ repo.platformIconSvg}}</span>{{repo.platformLabel}}</div>
+        <h1 class="title">{{repo.fullName}}</h1>
+        <p class="desc">{{repo.description}}</p>
+        <div class="stats">
+          <div class="stat">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="9"></circle>
+              <path d="M12 7v5l3 2"></path>
+            </svg>
+            <div><div class="value">{{repo.openIssues}}</div><div class="label">Issues</div></div>
+          </div>
+          <div class="stat">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2 7.5 14 3 9.6l6.2-.9L12 3Z"></path>
+            </svg>
+            <div><div class="value">{{repo.stars}}</div><div class="label">Stars</div></div>
+          </div>
+          <div class="stat">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="6" cy="5" r="3"></circle>
+              <circle cx="18" cy="5" r="3"></circle>
+              <circle cx="12" cy="19" r="3"></circle>
+              <path d="M6 8v3a8 8 0 0 0 12 0V8"></path>
+              <path d="M12 16v-2"></path>
+            </svg>
+            <div><div class="value">{{repo.forks}}</div><div class="label">Forks</div></div>
+          </div>
+          <div class="stat">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 3v18"></path>
+              <path d="M18 3v18"></path>
+              <path d="M6 7h12"></path>
+              <path d="M6 17h12"></path>
+            </svg>
+            <div><div class="value">{{repo.defaultBranch}}</div><div class="label">Branch</div></div>
+          </div>
+        </div>
+      </section>
+      <aside class="side">
+        <div class="badge">
+          {{if repo.avatarUrl}}
+          <img class="repo-avatar" src="{{repo.avatarUrl}}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';">
+          <div class="badge-fallback hidden">{{@ repo.platformIconSvg}}</div>
+          {{else}}
+          <div class="badge-fallback">{{@ repo.platformIconSvg}}</div>
+          {{/if}}
+        </div>
+        <div class="meta">
+          <div>Updated</div>
+          <strong>{{repo.updatedAt}}</strong>
+        </div>
+      </aside>
+    </main>
+  </div>
+</body>
+</html>
