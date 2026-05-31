@@ -4,7 +4,7 @@ import { getPlatformLabel } from './platform.js';
 export const buildWebhookPushMessage = async (platform, repo, payload = {}, event = 'push') => {
   const push = normalizeWebhookPush(platform, repo, payload, event);
   const img = await renderWebhookPushCard(push);
-  if (img) return push.url ? [img, '\n', push.url] : img;
+  if (img) return img;
   return formatWebhookPushText(push);
 };
 
@@ -63,6 +63,5 @@ const formatWebhookPushText = push => [
   `[${getPlatformLabel(push.platform)} Push] ${push.repo}`,
   `分支: ${push.branch || 'unknown'}`,
   `提交: ${push.commitCount}`,
-  push.pusher ? `提交者: ${push.pusher}` : '',
-  push.url ? `链接: ${push.url}` : ''
+  push.pusher ? `提交者: ${push.pusher}` : ''
 ].filter(Boolean).join('\n');
