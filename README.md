@@ -122,6 +122,15 @@ card:
 #githubsub QingYingX-Bot/Git-Plugin
 ```
 
+订阅多个仓库：
+
+```text
+#githubsub owner/repo,owner2/repo2，owner3/repo3、owner4/repo4
+#gitsub github owner/repo,owner2/repo2
+```
+
+多个仓库可使用 `,`、`，`、`、` 分隔。
+
 查询仓库：
 
 ```text
@@ -159,7 +168,7 @@ card:
 | `#gitpr github owner/repo` | 查询开启 PR 编号列表 |
 | `#gitreadme github owner/repo` | 查询 README |
 | `#gitlimit` | 查询 API 限流 |
-| `#gitsub github owner/repo` | 订阅仓库 |
+| `#gitsub github owner/repo,owner2/repo2` | 订阅一个或多个仓库 |
 | `#gitunsub github owner/repo` | 取消订阅仓库 |
 | `#gitlist` | 查看当前会话订阅 |
 | `#gitlist github` | 查看当前会话指定平台订阅 |
@@ -174,7 +183,7 @@ Gitea 通用命令需要带实例地址：
 #gitrepo gitea https://gitea.example.com owner/repo
 #gitissue gitea https://gitea.example.com owner/repo#1
 #gitpr gitea https://gitea.example.com owner/repo#1
-#gitsub gitea https://gitea.example.com owner/repo
+#gitsub gitea https://gitea.example.com owner/repo,owner2/repo2
 ```
 
 ## 平台直达命令

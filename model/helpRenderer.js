@@ -34,7 +34,7 @@ const GROUPS = [
     title: '订阅',
     compact: true,
     items: [
-      ['#gitsub github owner/repo', '订阅仓库推送'],
+      ['#gitsub github owner/repo,owner2/repo2', '订阅多个仓库推送'],
       ['#gitunsub github owner/repo', '取消仓库订阅'],
       ['#githubunsub', '取消 GitHub 全部订阅'],
       ['#gitlist', '查看当前会话订阅'],
@@ -88,7 +88,7 @@ export const formatGitHelpText = () => [
   '#gitissue github owner/repo#1 - 查询 Issue',
   '#gitpr github owner/repo#1 - 查询 PR',
   '#gitreadme github owner/repo - 查看 README',
-  '#gitsub github owner/repo - 订阅仓库',
+  '#gitsub github owner/repo,owner2/repo2 - 订阅多个仓库',
   '#gitlist - 查看订阅',
   '#gitlink on/off - 链接解析开关'
 ].join('\n');
