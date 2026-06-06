@@ -65,6 +65,29 @@ providers:
         # Gitea access token，建议只给 repository / issue 读权限。
         token: ""
 
+# 仓库更新检测。检查仓库是否有新 commit 并推送到指定群/好友。
+repoUpdate:
+  # 是否启用仓库更新检测。
+  enabled: false
+  # Cron 表达式，每 30 分钟检查一次。
+  cron: "0 */30 * * * *"
+  # 检测列表。每条记录独立配置推送目标和仓库。
+  list:
+    - # 推送群。
+      groups: []
+      # 推送好友。
+      friends: []
+      # 是否自动扫描本地插件仓库。
+      autoScan: false
+      # 排除列表。格式：owner/repo 或 owner/repo:branch。
+      exclude: []
+      # 手动指定的仓库。
+      repos: []
+      # 备注。
+      note: ""
+  # 扫描路径。留空使用 Yunzai 根目录（process.cwd()）。仅 autoScan 开启时生效。
+  scanPath: ""
+
 # Webhook 服务配置。平台侧 Payload URL 示例：http://host:6192/git/webhook。
 webhook:
   # 是否启动 webhook 接收服务。

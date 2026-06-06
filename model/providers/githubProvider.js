@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { requestJson } from '../request.js';
-import { normalizeIssue, normalizePull, normalizeRateLimit, normalizeReadme, normalizeRepo } from '../normalize.js';
+import { normalizeCommit, normalizeIssue, normalizePull, normalizeRateLimit, normalizeReadme, normalizeRepo } from '../normalize.js';
 
 export class GitHubProvider {
   constructor(config = {}) {
@@ -24,6 +24,16 @@ export class GitHubProvider {
   async getRepo(ref) {
     const data = await this.get(`/repos/${this.repoPath(ref)}`);
     return normalizeRepo(this.platform, data, this.withFallback(ref));
+  }
+
+  async listCommits(ref, options = {}) {
+    const query = {
+      per_page: options.perPage || 10,
+      page: options.page || 1,
+      sha: ref.branch || undefined
+    };
+    const data = await this.get(`/repos/${this.repoPath(ref)}/commits`, query);
+    return Array.isArray(data) ? data.map(item => normalizeCommit(this.platform, item, this.withFallback(ref))) : [];
   }
 
   async listIssues(ref, options = {}) {

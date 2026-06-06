@@ -40,7 +40,8 @@ const checkSubscription = async (config, store, item) => {
     return;
   }
 
-  const provider = createProvider(item.ref.platform, config, item.ref);
+  const repoToken = store.getRepoToken(item.key);
+  const provider = createProvider(item.ref.platform, config, item.ref, repoToken);
   const [issues, pulls] = await Promise.all([
     provider.listIssues(item.ref, { perPage: 10 }).catch(err => {
       logger.warn(`[Git-Plugin] ${item.key} Issue 轮询失败: ${err.message}`);

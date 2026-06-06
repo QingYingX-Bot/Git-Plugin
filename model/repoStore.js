@@ -8,7 +8,9 @@ const files = {
   subscriptions: path.join(dataDir, 'subscriptions.json'),
   defaults: path.join(dataDir, 'defaultRepos.json'),
   linkSettings: path.join(dataDir, 'linkSettings.json'),
-  lastCheck: path.join(dataDir, 'lastCheck.json')
+  lastCheck: path.join(dataDir, 'lastCheck.json'),
+  repoTokens: path.join(dataDir, 'repoTokens.json'),
+  lastSha: path.join(dataDir, 'lastSha.json')
 };
 
 const readJson = file => {
@@ -33,6 +35,8 @@ export class RepoStore {
     this.defaults = readJson(files.defaults);
     this.linkSettings = readJson(files.linkSettings);
     this.lastCheck = readJson(files.lastCheck);
+    this.repoTokens = readJson(files.repoTokens);
+    this.lastShaData = readJson(files.lastSha);
   }
 
   addSubscription(origin, ref, repoInfo = {}) {
@@ -115,5 +119,32 @@ export class RepoStore {
 
   getLinkEnabled(origin, fallback) {
     return this.linkSettings[origin] ?? fallback;
+  }
+
+  getRepoToken(key) {
+    return String(this.repoTokens[key] || '').trim();
+  }
+
+  setRepoToken(key, token) {
+    const value = String(token || '').trim();
+    if (value) this.repoTokens[key] = value;
+    else delete this.repoTokens[key];
+    writeJson(files.repoTokens, this.repoTokens);
+  }
+
+  removeRepoToken(key) {
+    if (!(key in this.repoTokens)) return false;
+    delete this.repoTokens[key];
+    writeJson(files.repoTokens, this.repoTokens);
+    return true;
+  }
+
+  getLastSha(key) {
+    return String(this.lastShaData[key] || '').trim();
+  }
+
+  setLastSha(key, sha) {
+    this.lastShaData[key] = sha;
+    writeJson(files.lastSha, this.lastShaData);
   }
 }

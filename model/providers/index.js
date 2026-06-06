@@ -12,11 +12,12 @@ const getGiteaConfig = (config, ref) => {
   return { ...(byUrl || {}), timeoutMs: config.requestTimeoutMs };
 };
 
-export const createProvider = (platform, config = {}, ref = {}) => {
+export const createProvider = (platform, config = {}, ref = {}, repoToken = '') => {
   const common = { timeoutMs: config.requestTimeoutMs };
-  if (platform === 'github') return new GitHubProvider({ ...config.providers?.github, ...common });
-  if (platform === 'gitee') return new GiteeProvider({ ...config.providers?.gitee, ...common });
-  if (platform === 'gitcode') return new GitCodeProvider({ ...config.providers?.gitcode, ...common });
-  if (platform === 'gitea') return new GiteaProvider(getGiteaConfig(config, ref), ref);
+  const token = repoToken ? { token: repoToken } : {};
+  if (platform === 'github') return new GitHubProvider({ ...config.providers?.github, ...common, ...token });
+  if (platform === 'gitee') return new GiteeProvider({ ...config.providers?.gitee, ...common, ...token });
+  if (platform === 'gitcode') return new GitCodeProvider({ ...config.providers?.gitcode, ...common, ...token });
+  if (platform === 'gitea') return new GiteaProvider({ ...getGiteaConfig(config, ref), ...token }, ref);
   throw new Error(`暂不支持平台: ${platform}`);
 };

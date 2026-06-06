@@ -11,7 +11,7 @@ export const runtime = () => {
   return { config, store };
 };
 
-export const providerFor = (ref, config) => createProvider(ref.platform, config, ref);
+export const providerFor = (ref, config, repoToken = '') => createProvider(ref.platform, config, ref, repoToken);
 
 export const replyError = (e, prefix, err) => {
   logger.error(`[Git-Plugin] ${prefix}: ${err.stack || err.message || err}`);

@@ -39,6 +39,18 @@ export const normalizeRepo = (platform, data = {}, fallback = {}) => {
   };
 };
 
+export const normalizeCommit = (platform, data = {}, fallback = {}) => ({
+  platform,
+  instance: fallback.instance || '',
+  repo: fallback.fullName || '',
+  sha: text(data.sha ?? data.id),
+  message: text(data.commit?.message ?? data.message ?? data.title),
+  author: userName(data.commit?.author ?? data.author) || text(data.commit?.author?.name ?? data.author?.name),
+  createdAt: text(data.commit?.author?.date ?? data.created_at ?? data.date),
+  webUrl: firstUrl(data.html_url, data.web_url),
+  raw: data
+});
+
 export const normalizeIssue = (platform, data = {}, fallback = {}) => ({
   platform,
   instance: fallback.instance || '',
