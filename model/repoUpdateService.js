@@ -96,11 +96,16 @@ export async function runRepoUpdateCheck(config) {
     for (const entry of list) {
       const targets = []
       for (const g of (entry.groups || [])) {
-        const id = String(g || '').trim()
+        const raw = String(g || '').trim()
+        if (!raw) continue
+        // Support "bot_id:group_hash" format — use the group hash part
+        const id = raw.includes(':') ? raw.split(':').slice(1).join(':') : raw
         if (id) targets.push(`group:${id}`)
       }
       for (const f of (entry.friends || [])) {
-        const id = String(f || '').trim()
+        const raw = String(f || '').trim()
+        if (!raw) continue
+        const id = raw.includes(':') ? raw.split(':').slice(1).join(':') : raw
         if (id) targets.push(`private:${id}`)
       }
       if (!targets.length) continue
