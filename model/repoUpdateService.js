@@ -141,6 +141,10 @@ export async function runRepoUpdateCheck(config) {
           // Fallback to plain text
           await notifySubscribers(targets, formatSingleUpdate(update))
         }
+        // Card is an image — send link separately so it's clickable
+        if (img && update.url) {
+          await notifySubscribers(targets, update.url).catch(() => {})
+        }
       }
     }
 
