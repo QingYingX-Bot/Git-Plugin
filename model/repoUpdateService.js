@@ -4,6 +4,7 @@ import { makeRepoKey } from './platform.js'
 import { scanLocalRepos } from './localScanner.js'
 import { notifySubscribers } from './notifier.js'
 import { getGitConfig } from '../components/config.js'
+import { renderRepoUpdateCard } from './repoUpdateRenderer.js'
 
 let running = false
 
@@ -32,7 +33,7 @@ export async function runRepoUpdateCheck(config) {
 
       // Auto-scanned repos
       if (entry.autoScan) {
-        const scanPath = String(config.autoScan?.scanPath || '').trim() || undefined
+        const scanPath = String(config.repoUpdate?.scanPath || '').trim() || undefined
         const scanned = await scanLocalRepos(scanPath)
         for (const repo of scanned) {
           const ref = {
@@ -131,8 +132,16 @@ export async function runRepoUpdateCheck(config) {
 
       if (!entryUpdates.length) continue
 
-      const message = formatUpdates(entryUpdates)
-      await notifySubscribers(targets, message)
+      // Try to render each update as a card image
+      for (const update of entryUpdates) {
+        const img = await renderRepoUpdateCard(update).catch(() => false)
+        if (img) {
+          await notifySubscribers(targets, img)
+        } else {
+          // Fallback to plain text
+          await notifySubscribers(targets, formatSingleUpdate(update))
+        }
+      }
     }
 
     logger.info(`[Git-Plugin] 仓库更新检测完成，${updates.size} 个仓库有更新`)
@@ -154,16 +163,11 @@ function buildRef(repo) {
   return ref
 }
 
-function formatUpdates(updates) {
-  const lines = ['[Git 仓库更新]']
-  for (const u of updates) {
-    lines.push(`📦 ${u.ref.platform}:${u.ref.fullName}`)
-    if (u.message) {
-      const firstLine = String(u.message).split('\n')[0].trim()
-      if (firstLine) lines.push(`  ${firstLine}`)
-    }
-    if (u.author) lines.push(`  👤 ${u.author}`)
-    if (u.url) lines.push(`  🔗 ${u.url}`)
-  }
-  return lines.join('\n')
+function formatSingleUpdate(u) {
+  return [
+    `[Git 仓库更新] ${u.ref.platform}:${u.ref.fullName}`,
+    u.message ? `  ${String(u.message).split('\n')[0].trim()}` : '',
+    u.author ? `  👤 ${u.author}` : '',
+    u.url ? `  🔗 ${u.url}` : ''
+  ].filter(Boolean).join('\n')
 }
