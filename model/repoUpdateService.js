@@ -99,15 +99,29 @@ export async function runRepoUpdateCheck(config) {
       for (const g of (entry.groups || [])) {
         const raw = String(g || '').trim()
         if (!raw) continue
-        // Support "bot_id:group_hash" format — use the group hash part
-        const id = raw.includes(':') ? raw.split(':').slice(1).join(':') : raw
-        if (id) targets.push(`group:${id}`)
+        // Support "bot_id:group_hash" format — preserve bot_id prefix
+        // e.g. "icqq:123456" -> "group:icqq:123456", "123456" -> "group:123456"
+        const parts = raw.split(':')
+        if (parts.length >= 2 && parts[0] && !/^\d+$/.test(parts[0])) {
+          // Has bot_id prefix
+          targets.push(`group:${raw}`)
+        } else {
+          // Plain group id
+          const id = parts.length >= 2 ? parts.slice(1).join(':') : raw
+          if (id) targets.push(`group:${id}`)
+        }
       }
       for (const f of (entry.friends || [])) {
         const raw = String(f || '').trim()
         if (!raw) continue
-        const id = raw.includes(':') ? raw.split(':').slice(1).join(':') : raw
-        if (id) targets.push(`private:${id}`)
+        // Support "bot_id:user_id" format — preserve bot_id prefix
+        const parts = raw.split(':')
+        if (parts.length >= 2 && parts[0] && !/^\d+$/.test(parts[0])) {
+          targets.push(`private:${raw}`)
+        } else {
+          const id = parts.length >= 2 ? parts.slice(1).join(':') : raw
+          if (id) targets.push(`private:${id}`)
+        }
       }
       if (!targets.length) continue
 

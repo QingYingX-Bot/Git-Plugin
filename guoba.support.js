@@ -77,13 +77,29 @@ function loadSubscriptionRows() {
     const displayFullName = instance ? `${instance} ${ref.fullName || `${owner}/${repo}`}` : (ref.fullName || `${owner}/${repo}`)
     const repoToken = store.getRepoToken(item.key)
     for (const origin of (item.subscribers || [])) {
-      const isGroup = origin.startsWith('group:')
-      const isPrivate = origin.startsWith('private:')
+      // Parse origin format: "bot_id:type:id" or "type:id"
+      const parts = String(origin).split(':')
+      let botId = ''
+      let type = ''
+      let id = ''
+      if (parts.length >= 3) {
+        botId = parts[0]
+        type = parts[1]
+        id = parts.slice(2).join(':')
+      } else if (parts.length === 2) {
+        type = parts[0]
+        id = parts[1]
+      }
+      const isGroup = type === 'group'
+      const isPrivate = type === 'private'
+      // Store with bot_id prefix if available
+      const groupValue = botId ? `${botId}:${id}` : id
+      const friendValue = botId ? `${botId}:${id}` : id
       rows.push({
         platform: ref.platform || '',
         fullName: displayFullName,
-        groups: isGroup ? [origin.replace('group:', '')] : [],
-        friends: isPrivate ? [origin.replace('private:', '')] : [],
+        groups: isGroup ? [groupValue] : [],
+        friends: isPrivate ? [friendValue] : [],
         token: repoToken
       })
     }
@@ -126,13 +142,28 @@ function applySubscriptionRows(rows) {
     const friends = Array.isArray(row?.friends) ? row.friends : []
     for (const g of groups) {
       const raw = String(g || '').trim()
-      const id = raw.includes(':') ? raw.split(':')[0] : raw
-      if (id) submittedEntries.push({ key, ref, origin: `group:${id}` })
+      if (!raw) continue
+      // Support "bot_id:group_id" format
+      const parts = raw.split(':')
+      if (parts.length >= 2 && parts[0] && !/^\d+$/.test(parts[0])) {
+        // Has bot_id prefix: "bot_id:group_id" -> "bot_id:group:group_id"
+        submittedEntries.push({ key, ref, origin: `${parts[0]}:group:${parts.slice(1).join(':')}` })
+      } else {
+        // Plain group id: "123456" -> "group:123456"
+        const id = parts.length >= 2 ? parts.slice(1).join(':') : raw
+        if (id) submittedEntries.push({ key, ref, origin: `group:${id}` })
+      }
     }
     for (const f of friends) {
       const raw = String(f || '').trim()
-      const id = raw.includes(':') ? raw.split(':')[0] : raw
-      if (id) submittedEntries.push({ key, ref, origin: `private:${id}` })
+      if (!raw) continue
+      const parts = raw.split(':')
+      if (parts.length >= 2 && parts[0] && !/^\d+$/.test(parts[0])) {
+        submittedEntries.push({ key, ref, origin: `${parts[0]}:private:${parts.slice(1).join(':')}` })
+      } else {
+        const id = parts.length >= 2 ? parts.slice(1).join(':') : raw
+        if (id) submittedEntries.push({ key, ref, origin: `private:${id}` })
+      }
     }
   }
 
@@ -188,11 +219,26 @@ export function supportGuoba() {
         const notifyRows = []
         for (const origin of rawTargets) {
           const o = String(origin || '').trim()
-          const isGroup = o.startsWith('group:')
-          const isPrivate = o.startsWith('private:')
+          // Parse origin format: "bot_id:type:id" or "type:id"
+          const parts = o.split(':')
+          let botId = ''
+          let type = ''
+          let id = ''
+          if (parts.length >= 3) {
+            botId = parts[0]
+            type = parts[1]
+            id = parts.slice(2).join(':')
+          } else if (parts.length === 2) {
+            type = parts[0]
+            id = parts[1]
+          }
+          const isGroup = type === 'group'
+          const isPrivate = type === 'private'
+          const groupValue = botId ? `${botId}:${id}` : id
+          const friendValue = botId ? `${botId}:${id}` : id
           notifyRows.push({
-            groups: isGroup ? [o.replace('group:', '')] : [],
-            friends: isPrivate ? [o.replace('private:', '')] : []
+            groups: isGroup ? [groupValue] : [],
+            friends: isPrivate ? [friendValue] : []
           })
         }
         if (config.autoScan) {
@@ -217,12 +263,27 @@ export function supportGuoba() {
             const targets = []
             for (const item of data.autoScan.notifyTargets) {
               for (const g of (item.groups || [])) {
-                const id = String(g || '').trim()
-                if (id) targets.push(`group:${id}`)
+                const raw = String(g || '').trim()
+                if (!raw) continue
+                // Support "bot_id:group_id" format
+                const parts = raw.split(':')
+                if (parts.length >= 2 && parts[0] && !/^\d+$/.test(parts[0])) {
+                  targets.push(`${parts[0]}:group:${parts.slice(1).join(':')}`)
+                } else {
+                  const id = parts.length >= 2 ? parts.slice(1).join(':') : raw
+                  if (id) targets.push(`group:${id}`)
+                }
               }
               for (const f of (item.friends || [])) {
-                const id = String(f || '').trim()
-                if (id) targets.push(`private:${id}`)
+                const raw = String(f || '').trim()
+                if (!raw) continue
+                const parts = raw.split(':')
+                if (parts.length >= 2 && parts[0] && !/^\d+$/.test(parts[0])) {
+                  targets.push(`${parts[0]}:private:${parts.slice(1).join(':')}`)
+                } else {
+                  const id = parts.length >= 2 ? parts.slice(1).join(':') : raw
+                  if (id) targets.push(`private:${id}`)
+                }
               }
             }
             set(merged, 'autoScan.notifyTargets', targets)

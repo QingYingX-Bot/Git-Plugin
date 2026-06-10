@@ -12,8 +12,10 @@ export const stripCommand = (message, names) => {
 };
 
 export const getOriginId = e => {
-  if (e?.group_id) return `group:${e.group_id}`;
-  if (e?.user_id) return `private:${e.user_id}`;
+  const botId = String(e?.self_id || '').trim();
+  const prefix = botId ? `${botId}:` : '';
+  if (e?.group_id) return `${prefix}group:${e.group_id}`;
+  if (e?.user_id) return `${prefix}private:${e.user_id}`;
   return String(e?.unified_msg_origin || 'unknown');
 };
 
