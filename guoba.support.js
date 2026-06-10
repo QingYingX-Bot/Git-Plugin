@@ -143,26 +143,27 @@ function applySubscriptionRows(rows) {
     for (const g of groups) {
       const raw = String(g || '').trim()
       if (!raw) continue
-      // Support "bot_id:group_id" format
+      // Support "bot_id:group_id" format — preserve bot_id prefix
+      // e.g. "3889750061:FB20E6..." -> "3889750061:group:FB20E6..."
       const parts = raw.split(':')
-      if (parts.length >= 2 && parts[0] && !/^\d+$/.test(parts[0])) {
-        // Has bot_id prefix: "bot_id:group_id" -> "bot_id:group:group_id"
+      if (parts.length >= 2) {
+        // Has bot_id prefix
         submittedEntries.push({ key, ref, origin: `${parts[0]}:group:${parts.slice(1).join(':')}` })
       } else {
-        // Plain group id: "123456" -> "group:123456"
-        const id = parts.length >= 2 ? parts.slice(1).join(':') : raw
-        if (id) submittedEntries.push({ key, ref, origin: `group:${id}` })
+        // Plain group id
+        submittedEntries.push({ key, ref, origin: `group:${raw}` })
       }
     }
     for (const f of friends) {
       const raw = String(f || '').trim()
       if (!raw) continue
       const parts = raw.split(':')
-      if (parts.length >= 2 && parts[0] && !/^\d+$/.test(parts[0])) {
+      if (parts.length >= 2) {
+        // Has bot_id prefix
         submittedEntries.push({ key, ref, origin: `${parts[0]}:private:${parts.slice(1).join(':')}` })
       } else {
-        const id = parts.length >= 2 ? parts.slice(1).join(':') : raw
-        if (id) submittedEntries.push({ key, ref, origin: `private:${id}` })
+        // Plain user id
+        submittedEntries.push({ key, ref, origin: `private:${raw}` })
       }
     }
   }
@@ -265,24 +266,22 @@ export function supportGuoba() {
               for (const g of (item.groups || [])) {
                 const raw = String(g || '').trim()
                 if (!raw) continue
-                // Support "bot_id:group_id" format
+                // Support "bot_id:group_id" format — preserve bot_id prefix
                 const parts = raw.split(':')
-                if (parts.length >= 2 && parts[0] && !/^\d+$/.test(parts[0])) {
+                if (parts.length >= 2) {
                   targets.push(`${parts[0]}:group:${parts.slice(1).join(':')}`)
                 } else {
-                  const id = parts.length >= 2 ? parts.slice(1).join(':') : raw
-                  if (id) targets.push(`group:${id}`)
+                  targets.push(`group:${raw}`)
                 }
               }
               for (const f of (item.friends || [])) {
                 const raw = String(f || '').trim()
                 if (!raw) continue
                 const parts = raw.split(':')
-                if (parts.length >= 2 && parts[0] && !/^\d+$/.test(parts[0])) {
+                if (parts.length >= 2) {
                   targets.push(`${parts[0]}:private:${parts.slice(1).join(':')}`)
                 } else {
-                  const id = parts.length >= 2 ? parts.slice(1).join(':') : raw
-                  if (id) targets.push(`private:${id}`)
+                  targets.push(`private:${raw}`)
                 }
               }
             }

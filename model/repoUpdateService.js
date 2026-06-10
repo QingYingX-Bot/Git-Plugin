@@ -105,28 +105,29 @@ export async function runRepoUpdateCheck(config) {
       for (const g of (entry.groups || [])) {
         const raw = String(g || '').trim()
         if (!raw) continue
-        // Support "bot_id:group_hash" format — preserve bot_id prefix
-        // e.g. "icqq:123456" -> "group:icqq:123456", "123456" -> "group:123456"
+        // Support "bot_id:group_hash" format — convert to "bot_id:group:group_hash"
+        // e.g. "3889750061:FB20E66229B4C2956BC8E2347CB557F5" -> "3889750061:group:FB20E66229B4C2956BC8E2347CB557F5"
+        // "FB20E66229B4C2956BC8E2347CB557F5" -> "group:FB20E66229B4C2956BC8E2347CB557F5"
         const parts = raw.split(':')
-        if (parts.length >= 2 && parts[0] && !/^\d+$/.test(parts[0])) {
-          // Has bot_id prefix
-          targets.push(`group:${raw}`)
+        if (parts.length >= 2) {
+          // Has bot_id prefix: "bot_id:group_hash" -> "bot_id:group:group_hash"
+          targets.push(`${parts[0]}:group:${parts.slice(1).join(':')}`)
         } else {
-          // Plain group id
-          const id = parts.length >= 2 ? parts.slice(1).join(':') : raw
-          if (id) targets.push(`group:${id}`)
+          // Plain group id: "group_hash" -> "group:group_hash"
+          targets.push(`group:${raw}`)
         }
       }
       for (const f of (entry.friends || [])) {
         const raw = String(f || '').trim()
         if (!raw) continue
-        // Support "bot_id:user_id" format — preserve bot_id prefix
+        // Support "bot_id:user_id" format — convert to "bot_id:private:user_id"
         const parts = raw.split(':')
-        if (parts.length >= 2 && parts[0] && !/^\d+$/.test(parts[0])) {
-          targets.push(`private:${raw}`)
+        if (parts.length >= 2) {
+          // Has bot_id prefix: "bot_id:user_id" -> "bot_id:private:user_id"
+          targets.push(`${parts[0]}:private:${parts.slice(1).join(':')}`)
         } else {
-          const id = parts.length >= 2 ? parts.slice(1).join(':') : raw
-          if (id) targets.push(`private:${id}`)
+          // Plain user id: "user_id" -> "private:user_id"
+          targets.push(`private:${raw}`)
         }
       }
       if (!targets.length) continue
