@@ -31,6 +31,7 @@ export const renderRepoUpdateCard = async update => {
       saveId: `repo-update-${update.platform}-${safeName(update.fullName)}-${safeName(update.sha)}`,
       imgType: 'png',
       quality: 100,
+      pageGotoParams: { waitUntil: 'networkidle0' },
       update: {
         ...update,
         platformLabel: getPlatformLabel(update.platform),

@@ -202,6 +202,11 @@
       border-radius: 50%;
       object-fit: cover;
       border: 2px solid var(--border-light);
+      visibility: hidden;
+    }
+
+    .author-avatar.loaded {
+      visibility: visible;
     }
 
     .message-box {
@@ -340,7 +345,7 @@
         <div class="field">
           <div class="field-label">作者</div>
           <div class="author-info">
-            <img class="author-avatar" src="{{update.authorAvatar}}" alt="{{update.author}}">
+            <img class="author-avatar" src="{{update.authorAvatar}}" alt="{{update.author}}" onload="this.classList.add('loaded')" onerror="this.classList.add('loaded')">
             <span class="field-value">{{update.author}}</span>
           </div>
         </div>
