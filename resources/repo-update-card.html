@@ -4,25 +4,59 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{update.platformLabel}} 仓库更新</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css@5/github-markdown-light.min.css" media="(prefers-color-scheme: light)">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css@5/github-markdown-dark.min.css" media="(prefers-color-scheme: dark)">
   <style>
     * {
       box-sizing: border-box;
     }
 
+    :root {
+      --bg-primary: #f5f7f9;
+      --bg-card: #fff;
+      --text-primary: #20252d;
+      --text-secondary: #687586;
+      --text-tertiary: #525b66;
+      --border-light: rgba(32, 37, 45, 0.08);
+      --border-medium: rgba(32, 37, 45, 0.1);
+      --bg-tag: rgba(175, 184, 193, 0.2);
+      --bg-gradient-start: rgba(255,255,255,0.96);
+      --bg-gradient-end: rgba(255,255,255,0.78);
+      --accent-color: {{update.accent}};
+      --accent-soft: {{update.accentSoft}};
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-primary: #0d1117;
+        --bg-card: #161b22;
+        --text-primary: #e6edf3;
+        --text-secondary: #8b949e;
+        --text-tertiary: #b1bac4;
+        --border-light: rgba(240, 246, 252, 0.1);
+        --border-medium: rgba(240, 246, 252, 0.15);
+        --bg-tag: rgba(110, 118, 129, 0.2);
+        --bg-gradient-start: rgba(22, 27, 34, 0.96);
+        --bg-gradient-end: rgba(22, 27, 34, 0.78);
+        --accent-color: {{update.accentLight || update.accent}};
+        --accent-soft: {{update.accentSoftLight || update.accentSoft}};
+      }
+    }
+
     body {
       margin: 0;
-      width: 800px;
+      width: 900px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", "Microsoft YaHei", sans-serif;
-      color: #20252d;
-      background: #f5f7f9;
+      color: var(--text-primary);
+      background: var(--bg-primary);
     }
 
     #container {
-      width: 800px;
-      padding: 44px 48px 40px;
+      width: 900px;
+      padding: 44px 52px 40px;
       background:
-        linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.78)),
-        #f5f7f9;
+        linear-gradient(180deg, var(--bg-gradient-start), var(--bg-gradient-end)),
+        var(--bg-primary);
       border-bottom: 40px solid {{update.accent}};
     }
 
@@ -37,7 +71,7 @@
       display: inline-flex;
       align-items: center;
       gap: 12px;
-      color: {{update.accent}};
+      color: var(--accent-color);
       font-size: 24px;
       font-weight: 760;
     }
@@ -48,8 +82,8 @@
       width: 34px;
       height: 34px;
       border-radius: 999px;
-      color: {{update.accent}};
-      background: {{update.accentSoft}};
+      color: var(--accent-color);
+      background: var(--accent-soft);
     }
 
     .platform-icon svg {
@@ -64,8 +98,8 @@
       gap: 10px;
       padding: 9px 14px;
       border-radius: 999px;
-      color: {{update.accent}};
-      background: {{update.accentSoft}};
+      color: var(--accent-color);
+      background: var(--accent-soft);
       font-size: 22px;
       font-weight: 760;
     }
@@ -74,7 +108,7 @@
       width: 11px;
       height: 11px;
       border-radius: 999px;
-      background: {{update.accent}};
+      background: #22c55e;
     }
 
     .headline {
@@ -82,17 +116,37 @@
     }
 
     .repo {
-      color: #687586;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--text-secondary);
       font-size: 25px;
       line-height: 1;
       font-weight: 720;
     }
 
+    .branch {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 6px;
+      background: var(--bg-tag);
+      color: var(--text-tertiary);
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .branch-icon {
+      width: 16px;
+      height: 16px;
+    }
+
     .title {
-      margin: 17px 0 0;
-      color: #20252d;
-      font-size: 38px;
-      line-height: 1.18;
+      margin-top: 14px;
+      color: var(--text-primary);
+      font-size: 34px;
+      line-height: 1.3;
       font-weight: 780;
       overflow-wrap: anywhere;
     }
@@ -101,26 +155,26 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 14px;
-      margin-top: 30px;
+      margin-top: 20px;
     }
 
     .field {
       min-width: 0;
       padding: 16px 18px;
-      border: 1px solid rgba(32, 37, 45, 0.08);
+      border: 1px solid var(--border-light);
       border-radius: 8px;
-      background: #fff;
+      background: var(--bg-card);
     }
 
     .field-label {
-      color: #687586;
+      color: var(--text-secondary);
       font-size: 16px;
       line-height: 1;
     }
 
     .field-value {
       margin-top: 8px;
-      color: #20252d;
+      color: var(--text-primary);
       font-size: 20px;
       line-height: 1.28;
       font-weight: 720;
@@ -131,15 +185,114 @@
       font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
     }
 
-    .footer {
-      margin-top: 26px;
-      padding: 16px 18px;
-      border: 1px solid rgba(32, 37, 45, 0.08);
-      border-radius: 8px;
-      background: #fff;
-      color: #687586;
-      font-size: 18px;
-      text-align: right;
+    .author-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .author-info .field-value {
+      margin-top: 0;
+    }
+
+    .author-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid var(--border-light);
+    }
+
+    .message-box {
+      margin-top: 17px;
+      padding: 20px 24px;
+      border: 1px solid var(--border-medium);
+      border-radius: 12px;
+      background: var(--bg-card);
+    }
+
+    .message-box .markdown-body {
+      font-size: 15px;
+      line-height: 1.6;
+      color: var(--text-tertiary);
+      background: transparent;
+    }
+
+    .message-box .markdown-body p {
+      margin-top: 0;
+      margin-bottom: 10px;
+    }
+
+    .message-box .markdown-body p:last-child {
+      margin-bottom: 0;
+    }
+
+    .message-box .markdown-body ul,
+    .message-box .markdown-body ol {
+      margin-top: 0;
+      margin-bottom: 10px;
+      padding-left: 2em;
+    }
+
+    .message-box .markdown-body li {
+      margin-bottom: 4px;
+    }
+
+    .message-box .markdown-body code {
+      padding: 2px 6px;
+      font-size: 13px;
+      background: var(--bg-tag);
+      border-radius: 6px;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+
+    .message-box .title {
+      margin-top: 0;
+      margin-bottom: 16px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .diff-stats {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border-light);
+    }
+
+    .diff-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .diff-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+
+    .diff-add {
+      color: #22c55e;
+    }
+
+    .diff-del {
+      color: #ef4444;
+    }
+
+    .diff-files {
+      color: var(--text-secondary);
+    }
+
+    .diff-time {
+      color: var(--text-secondary);
+      font-size: 14px;
     }
   </style>
 </head>
@@ -154,22 +307,45 @@
     </div>
 
     <section class="headline">
-      <div class="repo">{{update.fullName}}</div>
-      <h1 class="title">{{update.message}}</h1>
-    </section>
-
-    <section class="meta">
-      <div class="field">
-        <div class="field-label">Commit</div>
-        <div class="field-value mono">{{update.sha}}</div>
+      <div class="repo">
+        <span>{{update.fullName}}</span>
+        <span class="branch">
+          <svg class="branch-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M9.5 3.25a2.25 2.25 0 1 1 3 2.122V6A2.5 2.5 0 0 1 10 8.5H6a1 1 0 0 0-1 1v1.128a2.251 2.251 0 1 1-1.5 0V5.872a2.25 2.25 0 1 1 1.5 0v1.836A2.493 2.493 0 0 1 6 7h4a1 1 0 0 0 1-1v-.628A2.25 2.25 0 0 1 9.5 3.25Zm-6 0a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Zm8.25-.75a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5ZM4.25 12a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Z"/></svg>
+          {{update.branch}}
+        </span>
       </div>
-      <div class="field">
-        <div class="field-label">作者</div>
-        <div class="field-value">{{update.author}}</div>
+      <div class="message-box">
+        <h1 class="title">{{update.title}}</h1>
+        <div class="markdown-body">{{@ update.messageHtml}}</div>
+        <div class="diff-stats">
+          <div class="diff-left">
+            <div class="diff-item diff-files">
+              <span>{{update.filesChanged}} 文件变更</span>
+            </div>
+            <div class="diff-item diff-add">
+              <span>+{{update.additions}}</span>
+            </div>
+            <div class="diff-item diff-del">
+              <span>-{{update.deletions}}</span>
+            </div>
+          </div>
+          <div class="diff-time">{{update.time}}</div>
+        </div>
+      </div>
+      <div class="meta">
+        <div class="field">
+          <div class="field-label">Commit</div>
+          <div class="field-value mono">{{update.sha}}</div>
+        </div>
+        <div class="field">
+          <div class="field-label">作者</div>
+          <div class="author-info">
+            <img class="author-avatar" src="{{update.authorAvatar}}" alt="{{update.author}}">
+            <span class="field-value">{{update.author}}</span>
+          </div>
+        </div>
       </div>
     </section>
-
-    <div class="footer">{{update.time}}</div>
   </div>
 </body>
 </html>

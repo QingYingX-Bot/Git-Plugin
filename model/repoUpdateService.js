@@ -78,12 +78,18 @@ export async function runRepoUpdateCheck(config) {
         store.setLastSha(key, sha)
         if (lastSha) {
           // Only push if we had a previous SHA (skip first-time to avoid dumping history)
+          // Fetch commit details for diff stats
+          const commitDetails = await getCommitDetails(provider, ref, sha).catch(() => ({}))
+
           updates.set(key, {
             ref,
             sha: sha.slice(0, 7),
             message: latest.message || latest.title || '',
             author: latest.author || '',
-            url: latest.webUrl || ''
+            url: latest.webUrl || '',
+            filesChanged: commitDetails.filesChanged || 0,
+            additions: commitDetails.additions || 0,
+            deletions: commitDetails.deletions || 0
           })
         }
       } catch (err) {
@@ -155,10 +161,6 @@ export async function runRepoUpdateCheck(config) {
           // Fallback to plain text
           await notifySubscribers(targets, formatSingleUpdate(update))
         }
-        // Card is an image — send link separately so it's clickable
-        if (img && update.url) {
-          await notifySubscribers(targets, update.url).catch(() => {})
-        }
       }
     }
 
@@ -179,6 +181,22 @@ function buildRef(repo) {
   const branch = String(repo?.branch || '').trim()
   if (branch) ref.branch = branch
   return ref
+}
+
+async function getCommitDetails(provider, ref, sha) {
+  try {
+    // GitHub API: GET /repos/{owner}/{repo}/commits/{sha}
+    const data = await provider.get(`/repos/${provider.repoPath(ref)}/commits/${sha}`)
+    const stats = data.stats || {}
+    const files = data.files || []
+    return {
+      filesChanged: files.length,
+      additions: stats.additions || 0,
+      deletions: stats.deletions || 0
+    }
+  } catch {
+    return { filesChanged: 0, additions: 0, deletions: 0 }
+  }
 }
 
 function formatSingleUpdate(u) {
