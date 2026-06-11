@@ -5,6 +5,7 @@ import { getPluginRoot } from '../components/config.js'
 import { formatDate, shortText } from './formatters/common.js'
 import { getPlatformLabel } from './platform.js'
 import MarkdownIt from 'markdown-it'
+import { fetch } from 'undici'
 
 const PLATFORM_STYLES = {
   github: { accent: '#24292f', accentSoft: 'rgba(36, 41, 47, 0.14)', accentLight: '#e6edf3', accentSoftLight: 'rgba(230, 237, 243, 0.14)', icon: 'github.svg' },
@@ -18,9 +19,12 @@ const md = new MarkdownIt()
 const ICON_CACHE = new Map()
 
 export const renderRepoUpdateCard = async update => {
-  const style = PLATFORM_STYLES[update.platform] || PLATFORM_STYLES.github
+  const ref = update.ref || {}
+  const platform = ref.platform || update.platform || 'github'
+  const style = PLATFORM_STYLES[platform] || PLATFORM_STYLES.github
   try {
-    const authorAvatar = getAuthorAvatarUrl(update.platform, update.author)
+    const avatarUrl = update.authorAvatar || getAuthorAvatarUrl(platform, update.author)
+    const authorAvatar = await fetchAvatarAsDataUrl(avatarUrl)
     const message = update.message || '新提交'
     const lines = message.split('\n')
     const title = lines[0] || '新提交'
@@ -28,14 +32,16 @@ export const renderRepoUpdateCard = async update => {
 
     return await puppeteer.screenshot('Git-Plugin/repo-update-card', {
       tplFile: path.join(getPluginRoot(), 'resources', 'repo-update-card.html'),
-      saveId: `repo-update-${update.platform}-${safeName(update.fullName)}-${safeName(update.sha)}`,
+      saveId: `repo-update-${platform}-${safeName(ref.fullName || update.fullName)}-${safeName(update.sha)}`,
       imgType: 'png',
       quality: 100,
       pageGotoParams: { waitUntil: 'networkidle0' },
       update: {
         ...update,
-        platformLabel: getPlatformLabel(update.platform),
-        platformIconSvg: loadIcon(update.platform),
+        platform,
+        fullName: ref.fullName || update.fullName || '',
+        platformLabel: getPlatformLabel(platform),
+        platformIconSvg: loadIcon(platform),
         accent: style.accent,
         accentSoft: style.accentSoft,
         accentLight: style.accentLight,
@@ -45,7 +51,7 @@ export const renderRepoUpdateCard = async update => {
         author: update.author || 'unknown',
         authorAvatar,
         sha: update.sha || 'unknown',
-        branch: update.branch || 'main',
+        branch: ref.branch || update.branch || 'main',
         time: formatDate(update.time || new Date().toISOString()),
         filesChanged: update.filesChanged || 0,
         additions: update.additions || 0,
@@ -72,7 +78,7 @@ const loadIcon = platform => {
 
 const getAuthorAvatarUrl = (platform, author) => {
   if (!author || author === 'unknown') {
-    return 'https://github.com/identicons/unknown.png'
+    return ''
   }
 
   switch (platform) {
@@ -80,12 +86,24 @@ const getAuthorAvatarUrl = (platform, author) => {
       return `https://github.com/${author}.png?size=56`
     case 'gitee':
       return `https://gitee.com/${author}.png`
-    case 'gitcode':
-      return `https://gitcode.com/${author}.png`
-    case 'gitea':
-      return `https://gitea.com/${author}.png`
     default:
-      return `https://github.com/${author}.png?size=56`
+      return ''
+  }
+}
+
+const fetchAvatarAsDataUrl = async url => {
+  if (!url) return ''
+  try {
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(8000),
+      headers: { 'User-Agent': 'Git-Plugin/1.0' }
+    })
+    if (!res.ok) return ''
+    const contentType = res.headers.get('content-type') || 'image/png'
+    const buffer = Buffer.from(await res.arrayBuffer())
+    return `data:${contentType};base64,${buffer.toString('base64')}`
+  } catch {
+    return ''
   }
 }
 

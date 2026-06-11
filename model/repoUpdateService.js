@@ -86,6 +86,7 @@ export async function runRepoUpdateCheck(config) {
             sha: sha.slice(0, 7),
             message: latest.message || latest.title || '',
             author: latest.author || '',
+            authorAvatar: latest.authorAvatar || '',
             url: latest.webUrl || '',
             filesChanged: commitDetails.filesChanged || 0,
             additions: commitDetails.additions || 0,
