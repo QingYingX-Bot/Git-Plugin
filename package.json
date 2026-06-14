@@ -1,6 +1,6 @@
 {
   "name": "git-plugin",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Yunzai Git repository assistant for GitHub, Gitee, GitCode and Gitea.",
   "type": "module",
   "main": "index.js",

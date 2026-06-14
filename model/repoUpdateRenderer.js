@@ -5,7 +5,7 @@ import { getPluginRoot } from '../components/config.js'
 import { formatDate, shortText } from './formatters/common.js'
 import { getPlatformLabel } from './platform.js'
 import MarkdownIt from 'markdown-it'
-import { fetch } from 'undici'
+import { cleanupTempFiles, localizeImageUrl, toDataUrl } from './renderAssets.js'
 
 const PLATFORM_STYLES = {
   github: { accent: '#24292f', accentSoft: 'rgba(36, 41, 47, 0.14)', accentLight: '#e6edf3', accentSoftLight: 'rgba(230, 237, 243, 0.14)', icon: 'github.svg' },
@@ -22,9 +22,10 @@ export const renderRepoUpdateCard = async update => {
   const ref = update.ref || {}
   const platform = ref.platform || update.platform || 'github'
   const style = PLATFORM_STYLES[platform] || PLATFORM_STYLES.github
+  const cleanupFiles = []
   try {
     const avatarUrl = update.authorAvatar || getAuthorAvatarUrl(platform, update.author)
-    const authorAvatar = await fetchAvatarAsDataUrl(avatarUrl)
+    const authorAvatar = await fetchAvatarAsDataUrl(avatarUrl, cleanupFiles)
     const message = update.message || '新提交'
     const lines = message.split('\n')
     const title = lines[0] || '新提交'
@@ -61,6 +62,8 @@ export const renderRepoUpdateCard = async update => {
   } catch (err) {
     logger.error(`[Git-Plugin] 渲染仓库更新卡片失败: ${err?.message || err}`)
     return false
+  } finally {
+    await cleanupTempFiles(cleanupFiles)
   }
 }
 
@@ -91,20 +94,12 @@ const getAuthorAvatarUrl = (platform, author) => {
   }
 }
 
-const fetchAvatarAsDataUrl = async url => {
+const fetchAvatarAsDataUrl = async (url, cleanupFiles) => {
   if (!url) return ''
-  try {
-    const res = await fetch(url, {
-      signal: AbortSignal.timeout(8000),
-      headers: { 'User-Agent': 'Git-Plugin/1.0' }
-    })
-    if (!res.ok) return ''
-    const contentType = res.headers.get('content-type') || 'image/png'
-    const buffer = Buffer.from(await res.arrayBuffer())
-    return `data:${contentType};base64,${buffer.toString('base64')}`
-  } catch {
-    return ''
-  }
+  const file = await localizeImageUrl(url, 'repo-update-avatars')
+  if (!file) return ''
+  cleanupFiles.push(file)
+  return toDataUrl(file)
 }
 
 const safeName = value => String(value || 'repo').replace(/[^\w.-]+/g, '-').slice(0, 80)

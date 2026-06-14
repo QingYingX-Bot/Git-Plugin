@@ -1,8 +1,10 @@
-import fetch from 'node-fetch';
+import nodeFetch from 'node-fetch';
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { getGitConfig } from '../components/config.js';
+
+let fetchRuntimeCache = null;
 
 export class ApiRequestError extends Error {
   constructor(message, detail = {}) {
@@ -32,14 +34,14 @@ export const requestJson = async (url, options = {}) => {
   const requestUrl = appendQuery(url, options.query);
 
   try {
-    const dispatcher = await getProxyDispatcher();
-    const response = await fetch(requestUrl, {
+    const fetchOptions = {
       method: options.method || 'GET',
       headers: options.headers || {},
       body: options.body,
-      signal: controller.signal,
-      ...(dispatcher ? { dispatcher } : {})
-    });
+      signal: controller.signal
+    };
+    const { fetch, dispatcher } = await getFetchRuntime();
+    const response = await fetch(requestUrl, dispatcher ? { ...fetchOptions, dispatcher } : fetchOptions);
     const text = await response.text();
     const contentType = response.headers.get('content-type') || '';
     const data = text && contentType.includes('json') ? JSON.parse(text) : text;
@@ -63,15 +65,15 @@ export const requestJson = async (url, options = {}) => {
   }
 };
 
-const getProxyDispatcher = async () => {
-  try {
-    const proxy = String(getGitConfig()?.proxy || '').trim();
-    if (!proxy) return undefined;
-    const { ProxyAgent } = await loadUndici();
-    return new ProxyAgent(proxy);
-  } catch {
-    return undefined;
-  }
+const getFetchRuntime = async () => {
+  const proxy = String(getGitConfig()?.proxy || '').trim();
+  if (!proxy) return { fetch: nodeFetch };
+  if (fetchRuntimeCache?.proxy === proxy) return fetchRuntimeCache.runtime;
+
+  const { fetch, ProxyAgent } = await loadUndici();
+  const runtime = { fetch, dispatcher: new ProxyAgent(proxy) };
+  fetchRuntimeCache = { proxy, runtime };
+  return runtime;
 };
 
 const loadUndici = async () => {
