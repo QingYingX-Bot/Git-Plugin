@@ -1,6 +1,7 @@
 import { createProvider } from './providers/index.js';
 import { notifySubscribers } from './notifier.js';
 import { RepoStore } from './repoStore.js';
+import { maskAutoLink } from './formatters/link.js';
 
 let timer = null;
 let running = false;
@@ -72,6 +73,6 @@ const formatUpdate = (key, update) => {
     `新增 ${update.type} #${data.number}`,
     `标题: ${data.title || '无标题'}`,
     `作者: ${data.author || '未知'}`,
-    data.webUrl ? `链接: ${data.webUrl}` : ''
+    data.webUrl ? `链接: ${maskAutoLink(data.webUrl)}` : ''
   ].filter(Boolean).join('\n');
 };

@@ -5,6 +5,7 @@ import { scanLocalRepos } from './localScanner.js'
 import { notifySubscribers } from './notifier.js'
 import { getGitConfig } from '../components/config.js'
 import { renderRepoUpdateCard } from './repoUpdateRenderer.js'
+import { maskAutoLink } from './formatters/link.js'
 
 let running = false
 
@@ -206,6 +207,6 @@ function formatSingleUpdate(u) {
     `[Git 仓库更新] ${u.ref.platform}:${u.ref.fullName}`,
     u.message ? `  ${String(u.message).split('\n')[0].trim()}` : '',
     u.author ? `  👤 ${u.author}` : '',
-    u.url ? `  🔗 ${u.url}` : ''
+    u.url ? `  🔗 ${maskAutoLink(u.url)}` : ''
   ].filter(Boolean).join('\n')
 }

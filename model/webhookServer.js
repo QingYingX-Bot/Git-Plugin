@@ -4,6 +4,7 @@ import { notifySubscribers } from './notifier.js';
 import { getPlatformLabel, makeRepoKey, normalizeRepoSlug, splitFullName } from './platform.js';
 import { RepoStore } from './repoStore.js';
 import { buildWebhookPushMessage } from './webhookPush.js';
+import { maskAutoLink } from './formatters/link.js';
 
 let server = null;
 
@@ -153,7 +154,7 @@ const formatWebhookMessage = async (platform, key, req) => {
     `[${getPlatformLabel(platform)} ${formatEventName(event, getWebhookEventType(req))}] ${key}`,
     `事件: ${event}${actionText}`,
     title ? `标题: ${title}` : '',
-    url ? `链接: ${url}` : ''
+    url ? `链接: ${maskAutoLink(url)}` : ''
   ].filter(Boolean).join('\n');
 };
 
