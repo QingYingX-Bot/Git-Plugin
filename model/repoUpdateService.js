@@ -6,6 +6,7 @@ import { notifySubscribers } from './notifier.js'
 import { getGitConfig } from '../components/config.js'
 import { renderRepoUpdateCard } from './repoUpdateRenderer.js'
 import { maskAutoLink } from './formatters/link.js'
+import { getCommitReleaseInfo } from './releaseInfo.js'
 
 const HISTORY_PAGE_SIZE = 50
 const HISTORY_MAX_PAGES = 1
@@ -106,7 +107,10 @@ export async function runRepoUpdateCheck(config) {
           toSha: shortSha(rollbackTarget),
           time: new Date().toISOString()
         } : null)
-        const commitDetails = await getCommitDetails(provider, ref, sha).catch(() => ({}))
+        const [commitDetails, releaseInfo] = await Promise.all([
+          getCommitDetails(provider, ref, sha).catch(() => ({})),
+          getCommitReleaseInfo(provider, ref, sha).catch(() => null)
+        ])
 
         updates.set(key, {
           ref,
@@ -118,6 +122,7 @@ export async function runRepoUpdateCheck(config) {
           filesChanged: commitDetails.filesChanged || 0,
           additions: commitDetails.additions || 0,
           deletions: commitDetails.deletions || 0,
+          releaseInfo,
           rewrite: rewrite ? { ...rewrite, updateSha: shortSha(sha) } : null
         })
         if (pendingRewrite) store.clearPendingRewrite(key)
@@ -262,6 +267,7 @@ function formatSingleUpdate(u) {
     `[Git 仓库更新] ${u.ref.platform}:${u.ref.fullName}`,
     u.rewrite ? `  回退 ${u.rewrite.fromSha}${u.rewrite.toSha ? ` -> ${u.rewrite.toSha}` : ' 已离开当前分支'}` : '',
     u.rewrite ? `  更新 ${u.rewrite.updateSha}` : '',
+    u.releaseInfo ? `  ${u.releaseInfo.type === 'release' ? 'Release' : 'Tag'} ${u.releaseInfo.tag}${u.releaseInfo.title ? ` ${u.releaseInfo.title}` : ''}` : '',
     u.message ? `  ${String(u.message).split('\n')[0].trim()}` : '',
     u.author ? `  👤 ${u.author}` : '',
     u.url ? `  🔗 ${maskAutoLink(u.url)}` : ''
