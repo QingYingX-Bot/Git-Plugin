@@ -566,11 +566,23 @@ const schemas = [
           component: 'Switch',
         },
         {
+          field: 'qqBotButtons.updateAction',
+          label: '更新插件按钮行为',
+          bottomHelpMessage: '输入命令会填入输入框并发送；回调执行会直接触发命令',
+          component: 'Select',
+          componentProps: {
+            options: [
+              { label: '输入命令', value: 'input' },
+              { label: '回调执行', value: 'callback' },
+            ],
+          },
+        },
+        {
           field: 'qqBotButtons.updateCommand',
           label: '更新插件命令',
-          bottomHelpMessage: '{plugin} 会替换成本地插件目录名，例如 #静更新{plugin}',
+          bottomHelpMessage: '{plugin} 会替换成本地插件目录名，例如 #更新{plugin}',
           component: 'Input',
-          componentProps: { placeholder: '#静更新{plugin}' },
+          componentProps: { placeholder: '#更新{plugin}' },
         },
 
         // ========== 订阅管理 ==========

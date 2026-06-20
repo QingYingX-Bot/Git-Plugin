@@ -11,7 +11,8 @@ export function getQQBotButtonConfig(config = {}) {
     showCompare: Boolean(value.showCompare),
     showRelease: value.showRelease !== false,
     showUpdatePlugin: value.showUpdatePlugin !== false,
-    updateCommand: String(value.updateCommand || '#静更新{plugin}').trim() || '#静更新{plugin}'
+    updateAction: normalizeUpdateAction(value.updateAction),
+    updateCommand: String(value.updateCommand || '#更新{plugin}').trim() || '#更新{plugin}'
   }
 }
 
@@ -93,12 +94,30 @@ export function buildWebhookPushButtons(push, config) {
 
 function buildUpdatePluginRow(pluginName, buttonConfig) {
   if (!buttonConfig.showUpdatePlugin || !pluginName) return []
+  const command = buttonConfig.updateCommand.replace(/\{plugin\}/g, pluginName)
+  if (buttonConfig.updateAction === 'input') {
+    return [{
+      text: '更新插件',
+      input: command,
+      send: true,
+      style: 4
+    }]
+  }
+
   return [{
     text: '更新插件',
-    input: buttonConfig.updateCommand.replace(/\{plugin\}/g, pluginName),
-    send: true,
-    style: 4
+    clicked_text: '开始更新',
+    callback: command,
+    toCallback: true,
+    style: 4,
+    content: `确认更新 ${pluginName}？`,
+    confirm_text: '更新',
+    cancel_text: '取消'
   }]
+}
+
+function normalizeUpdateAction(value) {
+  return String(value || '').trim().toLowerCase() === 'callback' ? 'callback' : 'input'
 }
 
 function buildRepoWebUrl(ref = {}, config = {}) {
