@@ -310,6 +310,48 @@
       color: var(--text-secondary);
       font-size: 14px;
     }
+
+    .rewrite-box {
+      display: grid;
+      gap: 10px;
+      margin-top: 16px;
+      padding: 14px 16px;
+      border: 1px solid var(--accent-soft);
+      border-radius: 10px;
+      background: var(--accent-soft);
+    }
+
+    .rewrite-title {
+      color: var(--accent-color);
+      font-size: 15px;
+      line-height: 1;
+      font-weight: 760;
+    }
+
+    .rewrite-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-tertiary);
+      font-size: 14px;
+      line-height: 1.3;
+    }
+
+    .rewrite-label {
+      min-width: 34px;
+      color: var(--text-secondary);
+      font-weight: 700;
+    }
+
+    .rewrite-line code {
+      padding: 3px 7px;
+      border-radius: 6px;
+      background: var(--bg-card);
+      color: var(--text-primary);
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 13px;
+      font-weight: 700;
+    }
   </style>
 </head>
 <body>
@@ -333,6 +375,20 @@
       <div class="message-box">
         <h1 class="title">{{update.title}}</h1>
         {{if update.messageHtml}}<div class="markdown-body">{{@ update.messageHtml}}</div>{{/if}}
+        {{if update.rewrite}}
+        <div class="rewrite-box">
+          <div class="rewrite-title">检测到分支历史回退后继续更新</div>
+          <div class="rewrite-line">
+            <span class="rewrite-label">回退</span>
+            <code>{{update.rewrite.fromSha}}</code>
+            {{if update.rewrite.toSha}}<span>→</span><code>{{update.rewrite.toSha}}</code>{{else}}<span>已离开当前分支</span>{{/if}}
+          </div>
+          <div class="rewrite-line">
+            <span class="rewrite-label">更新</span>
+            <code>{{update.rewrite.updateSha}}</code>
+          </div>
+        </div>
+        {{/if}}
         <div class="diff-stats">
           <div class="diff-left">
             <div class="diff-item diff-files">

@@ -56,7 +56,8 @@ export const renderRepoUpdateCard = async update => {
         time: formatDate(update.time || new Date().toISOString()),
         filesChanged: update.filesChanged || 0,
         additions: update.additions || 0,
-        deletions: update.deletions || 0
+        deletions: update.deletions || 0,
+        rewrite: normalizeRewrite(update.rewrite, update.sha)
       }
     })
   } catch (err) {
@@ -103,3 +104,14 @@ const fetchAvatarAsDataUrl = async (url, cleanupFiles) => {
 }
 
 const safeName = value => String(value || 'repo').replace(/[^\w.-]+/g, '-').slice(0, 80)
+
+const normalizeRewrite = (rewrite, updateSha) => {
+  if (!rewrite) return null
+  return {
+    fromSha: shortSha(rewrite.fromSha),
+    toSha: shortSha(rewrite.toSha),
+    updateSha: shortSha(rewrite.updateSha || updateSha)
+  }
+}
+
+const shortSha = value => String(value || '').trim().slice(0, 7)

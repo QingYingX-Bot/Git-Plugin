@@ -10,8 +10,11 @@ const files = {
   linkSettings: path.join(dataDir, 'linkSettings.json'),
   lastCheck: path.join(dataDir, 'lastCheck.json'),
   repoTokens: path.join(dataDir, 'repoTokens.json'),
-  lastSha: path.join(dataDir, 'lastSha.json')
+  lastSha: path.join(dataDir, 'lastSha.json'),
+  shaHistory: path.join(dataDir, 'shaHistory.json'),
+  pendingRewrite: path.join(dataDir, 'pendingRewrite.json')
 };
+const SHA_HISTORY_LIMIT = 50;
 
 const readJson = file => {
   if (!fs.existsSync(file)) return {};
@@ -37,6 +40,8 @@ export class RepoStore {
     this.lastCheck = readJson(files.lastCheck);
     this.repoTokens = readJson(files.repoTokens);
     this.lastShaData = readJson(files.lastSha);
+    this.shaHistory = readJson(files.shaHistory);
+    this.pendingRewrite = readJson(files.pendingRewrite);
   }
 
   addSubscription(origin, ref, repoInfo = {}) {
@@ -146,5 +151,35 @@ export class RepoStore {
   setLastSha(key, sha) {
     this.lastShaData[key] = sha;
     writeJson(files.lastSha, this.lastShaData);
+  }
+
+  getShaHistory(key) {
+    const rows = this.shaHistory[key];
+    return Array.isArray(rows) ? rows.map(item => String(item || '').trim()).filter(Boolean) : [];
+  }
+
+  setShaHistory(key, hashes = []) {
+    const rows = [...new Set(hashes.map(item => String(item || '').trim()).filter(Boolean))].slice(0, SHA_HISTORY_LIMIT);
+    if (rows.length) this.shaHistory[key] = rows;
+    else delete this.shaHistory[key];
+    writeJson(files.shaHistory, this.shaHistory);
+  }
+
+  getPendingRewrite(key) {
+    const item = this.pendingRewrite[key];
+    return item && typeof item === 'object' ? item : null;
+  }
+
+  setPendingRewrite(key, rewrite) {
+    if (rewrite && typeof rewrite === 'object') this.pendingRewrite[key] = rewrite;
+    else delete this.pendingRewrite[key];
+    writeJson(files.pendingRewrite, this.pendingRewrite);
+  }
+
+  clearPendingRewrite(key) {
+    if (!(key in this.pendingRewrite)) return false;
+    delete this.pendingRewrite[key];
+    writeJson(files.pendingRewrite, this.pendingRewrite);
+    return true;
   }
 }

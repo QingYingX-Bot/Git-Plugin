@@ -7,6 +7,9 @@ import { getGitConfig } from '../components/config.js'
 import { renderRepoUpdateCard } from './repoUpdateRenderer.js'
 import { maskAutoLink } from './formatters/link.js'
 
+const HISTORY_PAGE_SIZE = 50
+const HISTORY_MAX_PAGES = 1
+
 let running = false
 
 export async function runRepoUpdateCheck(config) {
@@ -65,35 +68,59 @@ export async function runRepoUpdateCheck(config) {
     for (const [key, { ref, token }] of allRepos) {
       try {
         const provider = createProvider(ref.platform, config, ref, token)
-        const commits = await provider.listCommits(ref, { perPage: 1 })
+        const lastSha = store.getLastSha(key)
+        const commits = await listRecentCommits(provider, ref, lastSha)
         if (!commits?.length) continue
 
         const latest = commits[0]
         const sha = latest.sha || ''
         if (!sha) continue
 
-        const lastSha = store.getLastSha(key)
-        if (lastSha === sha) continue
-
-        // Update detected (or first time)
-        store.setLastSha(key, sha)
-        if (lastSha) {
-          // Only push if we had a previous SHA (skip first-time to avoid dumping history)
-          // Fetch commit details for diff stats
-          const commitDetails = await getCommitDetails(provider, ref, sha).catch(() => ({}))
-
-          updates.set(key, {
-            ref,
-            sha: sha.slice(0, 7),
-            message: latest.message || latest.title || '',
-            author: latest.author || '',
-            authorAvatar: latest.authorAvatar || '',
-            url: latest.webUrl || '',
-            filesChanged: commitDetails.filesChanged || 0,
-            additions: commitDetails.additions || 0,
-            deletions: commitDetails.deletions || 0
-          })
+        const hashes = commits.map(item => item.sha).filter(Boolean)
+        if (sameSha(lastSha, sha)) {
+          store.setShaHistory(key, hashes)
+          continue
         }
+
+        const oldHistory = store.getShaHistory(key)
+        const lastInCurrent = commits.some(item => sameSha(item.sha, lastSha))
+        const rollbackTarget = lastInCurrent ? '' : findCommonSha(commits, oldHistory)
+        const rollbackOnly = Boolean(rollbackTarget && sameSha(rollbackTarget, sha))
+        store.setLastSha(key, sha)
+        store.setShaHistory(key, hashes)
+        if (!lastSha) continue
+
+        if (rollbackOnly) {
+          const pending = store.getPendingRewrite(key)
+          store.setPendingRewrite(key, {
+            fromSha: pending?.fromSha || shortSha(lastSha),
+            toSha: shortSha(rollbackTarget),
+            time: new Date().toISOString()
+          })
+          continue
+        }
+
+        const pendingRewrite = store.getPendingRewrite(key)
+        const rewrite = pendingRewrite || (rollbackTarget ? {
+          fromSha: shortSha(lastSha),
+          toSha: shortSha(rollbackTarget),
+          time: new Date().toISOString()
+        } : null)
+        const commitDetails = await getCommitDetails(provider, ref, sha).catch(() => ({}))
+
+        updates.set(key, {
+          ref,
+          sha: shortSha(sha),
+          message: latest.message || latest.title || '',
+          author: latest.author || '',
+          authorAvatar: latest.authorAvatar || '',
+          url: latest.webUrl || '',
+          filesChanged: commitDetails.filesChanged || 0,
+          additions: commitDetails.additions || 0,
+          deletions: commitDetails.deletions || 0,
+          rewrite: rewrite ? { ...rewrite, updateSha: shortSha(sha) } : null
+        })
+        if (pendingRewrite) store.clearPendingRewrite(key)
       } catch (err) {
         logger.warn(`[Git-Plugin] 检查 ${key} 更新失败: ${err.message}`)
       }
@@ -186,6 +213,34 @@ function buildRef(repo) {
   return ref
 }
 
+async function listRecentCommits(provider, ref, stopSha = '') {
+  const result = []
+  for (let page = 1; page <= HISTORY_MAX_PAGES; page += 1) {
+    const rows = await provider.listCommits(ref, { perPage: HISTORY_PAGE_SIZE, page })
+    const commits = Array.isArray(rows) ? rows.filter(item => item?.sha) : []
+    result.push(...commits)
+    if (stopSha && commits.some(item => sameSha(item.sha, stopSha))) break
+    if (commits.length < HISTORY_PAGE_SIZE) break
+  }
+  return result
+}
+
+function sameSha(left = '', right = '') {
+  const a = String(left || '').trim().toLowerCase()
+  const b = String(right || '').trim().toLowerCase()
+  if (!a || !b) return false
+  return a === b || (a.length >= 7 && b.startsWith(a)) || (b.length >= 7 && a.startsWith(b))
+}
+
+function findCommonSha(commits = [], history = []) {
+  const found = commits.find(item => history.some(sha => sameSha(sha, item.sha)))
+  return found?.sha || ''
+}
+
+function shortSha(value = '') {
+  return String(value || '').trim().slice(0, 7)
+}
+
 async function getCommitDetails(provider, ref, sha) {
   try {
     // GitHub API: GET /repos/{owner}/{repo}/commits/{sha}
@@ -205,6 +260,8 @@ async function getCommitDetails(provider, ref, sha) {
 function formatSingleUpdate(u) {
   return [
     `[Git 仓库更新] ${u.ref.platform}:${u.ref.fullName}`,
+    u.rewrite ? `  回退 ${u.rewrite.fromSha}${u.rewrite.toSha ? ` -> ${u.rewrite.toSha}` : ' 已离开当前分支'}` : '',
+    u.rewrite ? `  更新 ${u.rewrite.updateSha}` : '',
     u.message ? `  ${String(u.message).split('\n')[0].trim()}` : '',
     u.author ? `  👤 ${u.author}` : '',
     u.url ? `  🔗 ${maskAutoLink(u.url)}` : ''
