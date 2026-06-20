@@ -1,25 +1,42 @@
-export const sendOriginMessage = async (origin, message) => {
+import { segment } from '../../../lib/modules/oicq/index.js';
+
+const parseOrigin = origin => {
   const str = String(origin);
   const parts = str.split(':');
 
-  // Parse origin format: "bot_id:type:id" or "type:id"
-  // bot_id is optional, type is "group" or "private"
-  let botId = '';
-  let type = '';
-  let id = '';
-
   if (parts.length >= 3) {
-    // "bot_id:type:id" format (new format with bot_id)
-    botId = parts[0];
-    type = parts[1];
-    id = parts.slice(2).join(':');
-  } else if (parts.length === 2) {
-    // "type:id" format (old format without bot_id)
-    type = parts[0];
-    id = parts[1];
-  } else {
-    throw new Error(`未知会话: ${origin}`);
+    return {
+      botId: parts[0],
+      type: parts[1],
+      id: parts.slice(2).join(':')
+    };
   }
+
+  if (parts.length === 2) {
+    return {
+      botId: '',
+      type: parts[0],
+      id: parts[1]
+    };
+  }
+
+  throw new Error(`未知会话: ${origin}`);
+};
+
+const isQQBotTarget = botId => {
+  if (!botId || !Bot?.[botId]) return false;
+  const bot = Bot[botId];
+  return bot.version?.id === 'QQBot' || bot.adapter?.id === 'QQBot' || bot.adapter?.name === 'QQBot';
+};
+
+const withQQBotButtons = (origin, message, buttonRows = []) => {
+  if (!buttonRows.length || !isQQBotTarget(parseOrigin(origin).botId)) return message;
+  const list = Array.isArray(message) ? [...message] : [message];
+  return [...list, segment.button(...buttonRows)];
+};
+
+export const sendOriginMessage = async (origin, message) => {
+  const { botId, type, id } = parseOrigin(origin);
 
   // Use specific adapter if bot_id is available
   const pickTarget = (picker) => {
@@ -35,10 +52,10 @@ export const sendOriginMessage = async (origin, message) => {
   throw new Error(`未知会话: ${origin}`);
 };
 
-export const notifySubscribers = async (subscribers, message) => {
+export const notifySubscribers = async (subscribers, message, options = {}) => {
   for (const origin of subscribers || []) {
     try {
-      await sendOriginMessage(origin, message);
+      await sendOriginMessage(origin, withQQBotButtons(origin, message, options.qqBotButtons || []));
     } catch (err) {
       logger.warn(`[Git-Plugin] 推送到 ${origin} 失败: ${err.message}`);
     }
