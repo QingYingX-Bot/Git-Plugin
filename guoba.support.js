@@ -416,6 +416,18 @@ const schemas = [
           componentProps: { placeholder: '请输入 Cron 表达式', hideYear: true },
         },
         {
+          field: 'repoUpdate.theme',
+          label: '更新卡片主题',
+          bottomHelpMessage: '仓库更新卡片主题',
+          component: 'Select',
+          componentProps: {
+            options: [
+              { label: '浅色', value: 'light' },
+              { label: '深色', value: 'dark' },
+            ],
+          },
+        },
+        {
           field: 'repoUpdate.scanPath',
           label: '扫描路径',
           bottomHelpMessage: '自动扫描本地插件时的路径，留空使用 plugins 目录',
@@ -514,6 +526,51 @@ const schemas = [
               },
             ],
           },
+        },
+
+        // ========== QQBot 按钮 ==========
+        { label: 'QQBot 按钮', component: 'SOFT_GROUP_BEGIN' },
+        {
+          field: 'qqBotButtons.enabled',
+          label: '启用按钮',
+          bottomHelpMessage: '仓库更新和 Webhook Push 推送到 QQBot 官机时附加按钮',
+          component: 'Switch',
+        },
+        {
+          field: 'qqBotButtons.showCommit',
+          label: '显示提交按钮',
+          bottomHelpMessage: '显示“查看提交”按钮。开启对比按钮且可生成对比链接时会优先显示“查看对比”',
+          component: 'Switch',
+        },
+        {
+          field: 'qqBotButtons.showRepo',
+          label: '显示仓库按钮',
+          component: 'Switch',
+        },
+        {
+          field: 'qqBotButtons.showCompare',
+          label: '显示对比按钮',
+          bottomHelpMessage: '普通仓库更新使用 old...new；Webhook Push 使用平台 compare 链接',
+          component: 'Switch',
+        },
+        {
+          field: 'qqBotButtons.showRelease',
+          label: '显示版本按钮',
+          bottomHelpMessage: 'Release / Tag 有链接时显示“查看版本”',
+          component: 'Switch',
+        },
+        {
+          field: 'qqBotButtons.showUpdatePlugin',
+          label: '显示更新插件按钮',
+          bottomHelpMessage: '推送仓库匹配本地插件目录时显示“更新插件”',
+          component: 'Switch',
+        },
+        {
+          field: 'qqBotButtons.updateCommand',
+          label: '更新插件命令',
+          bottomHelpMessage: '{plugin} 会替换成本地插件目录名，例如 #静更新{plugin}',
+          component: 'Input',
+          componentProps: { placeholder: '#静更新{plugin}' },
         },
 
         // ========== 订阅管理 ==========

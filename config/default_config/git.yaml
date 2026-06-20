@@ -91,6 +91,23 @@ repoUpdate:
   # 扫描路径。留空使用 Yunzai 根目录（process.cwd()）。仅 autoScan 开启时生效。
   scanPath: ""
 
+# QQBot 官机按钮配置。用于仓库更新和 Webhook Push 推送。
+qqBotButtons:
+  # 是否启用 QQBot 官机按钮。
+  enabled: true
+  # 是否显示提交按钮。
+  showCommit: true
+  # 是否显示仓库按钮。
+  showRepo: true
+  # 是否优先显示对比按钮。仓库更新仅普通更新可用，Webhook Push 使用平台 compare 链接。
+  showCompare: false
+  # 是否显示 Release / Tag 版本按钮。
+  showRelease: true
+  # 是否显示更新本地插件按钮。
+  showUpdatePlugin: true
+  # 更新插件按钮发送的命令，{plugin} 会替换成本地插件目录名。
+  updateCommand: "#静更新{plugin}"
+
 # Webhook 服务配置。接收平台实时事件并推送到已订阅会话。
 # 平台侧 Payload URL 示例：http://host:6192/git/webhook。
 webhook:

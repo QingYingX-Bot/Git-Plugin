@@ -1,4 +1,3 @@
-import path from 'node:path'
 import { createProvider } from './providers/index.js'
 import { RepoStore } from './repoStore.js'
 import { makeRepoKey } from './platform.js'
@@ -8,6 +7,7 @@ import { getGitConfig } from '../components/config.js'
 import { renderRepoUpdateCard } from './repoUpdateRenderer.js'
 import { maskAutoLink } from './formatters/link.js'
 import { getCommitReleaseInfo } from './releaseInfo.js'
+import { attachLocalPluginNames, buildRepoUpdateButtons, targetsIncludeQQBot } from './qqBotButtons.js'
 
 const HISTORY_PAGE_SIZE = 50
 const HISTORY_MAX_PAGES = 1
@@ -116,6 +116,8 @@ export async function runRepoUpdateCheck(config) {
         updates.set(key, {
           ref,
           sha: shortSha(sha),
+          fullSha: sha,
+          previousSha: lastSha,
           message: latest.message || latest.title || '',
           author: latest.author || '',
           authorAvatar: latest.authorAvatar || '',
@@ -279,81 +281,4 @@ function formatSingleUpdate(u) {
     u.author ? `  👤 ${u.author}` : '',
     u.url ? `  🔗 ${maskAutoLink(u.url)}` : ''
   ].filter(Boolean).join('\n')
-}
-
-function buildRepoUpdateButtons(update, config) {
-  const linkRow = []
-  if (update.url) {
-    linkRow.push({ text: '查看提交', link: update.url, style: 1 })
-  }
-
-  const repoUrl = buildRepoWebUrl(update.ref, config)
-  if (repoUrl && repoUrl !== update.url) {
-    linkRow.push({ text: '打开仓库', link: repoUrl, style: 2 })
-  }
-
-  const releaseUrl = String(update.releaseInfo?.url || '').trim()
-  if (releaseUrl && releaseUrl !== update.url && releaseUrl !== repoUrl) {
-    linkRow.push({ text: '查看版本', link: releaseUrl, style: 2 })
-  }
-
-  const actionRow = []
-  if (update.localPluginName) {
-    actionRow.push({
-      text: '更新插件',
-      input: `#静更新${update.localPluginName}`,
-      send: true,
-      style: 4
-    })
-  }
-
-  return [linkRow, actionRow].filter(row => row.length)
-}
-
-function buildRepoWebUrl(ref = {}, config = {}) {
-  const fullName = String(ref.fullName || '').trim().replace(/^\/+|\/+$/g, '')
-  if (!fullName) return ''
-
-  const platform = String(ref.platform || '').trim()
-  const defaults = {
-    github: 'https://github.com',
-    gitee: 'https://gitee.com',
-    gitcode: 'https://gitcode.com'
-  }
-  const base = platform === 'gitea'
-    ? String(ref.instance || config.providers?.gitea?.instances?.default?.baseUrl || '').trim()
-    : String(config.providers?.[platform]?.webBase || defaults[platform] || '').trim()
-
-  return base ? `${base.replace(/\/+$/g, '')}/${fullName}` : ''
-}
-
-async function attachLocalPluginNames(updates) {
-  const localRepos = await scanLocalRepos(path.join(process.cwd(), 'plugins')).catch(err => {
-    logger.warn(`[Git-Plugin] 扫描本地插件仓库失败: ${err.message}`)
-    return []
-  })
-  if (!localRepos.length) return
-
-  const localPluginMap = new Map()
-  for (const repo of localRepos) {
-    const pluginName = path.basename(repo.dir || '')
-    const key = repoLookupKey(repo)
-    if (pluginName && key) localPluginMap.set(key, pluginName)
-  }
-
-  for (const update of updates.values()) {
-    update.localPluginName = localPluginMap.get(repoLookupKey(update.ref)) || ''
-  }
-}
-
-function repoLookupKey(ref) {
-  return makeRepoKey(ref).toLowerCase()
-}
-
-function targetsIncludeQQBot(targets = []) {
-  return targets.some(origin => {
-    const botId = String(origin || '').split(':')[0]
-    const bot = botId && Bot?.[botId]
-    return bot?.version?.id === 'QQBot' || bot?.adapter?.id === 'QQBot' || bot?.adapter?.name === 'QQBot'
-  })
 }

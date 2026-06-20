@@ -2,10 +2,14 @@ import { renderWebhookPushCard } from './webhookPushRenderer.js';
 import { getPlatformLabel } from './platform.js';
 
 export const buildWebhookPushMessage = async (platform, repo, payload = {}, event = 'push') => {
+  const { message } = await buildWebhookPushPayload(platform, repo, payload, event);
+  return message;
+};
+
+export const buildWebhookPushPayload = async (platform, repo, payload = {}, event = 'push') => {
   const push = normalizeWebhookPush(platform, repo, payload, event);
   const img = await renderWebhookPushCard(push);
-  if (img) return img;
-  return formatWebhookPushText(push);
+  return { message: img || formatWebhookPushText(push), push };
 };
 
 const normalizeWebhookPush = (platform, repo, payload, event) => {

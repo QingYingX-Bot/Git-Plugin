@@ -3,8 +3,9 @@ import express from 'express';
 import { notifySubscribers } from './notifier.js';
 import { getPlatformLabel, makeRepoKey, normalizeRepoSlug, splitFullName } from './platform.js';
 import { RepoStore } from './repoStore.js';
-import { buildWebhookPushMessage } from './webhookPush.js';
+import { buildWebhookPushPayload } from './webhookPush.js';
 import { maskAutoLink } from './formatters/link.js';
+import { attachLocalPluginNames, buildWebhookPushButtons, targetsIncludeQQBot } from './qqBotButtons.js';
 
 let server = null;
 
@@ -54,8 +55,8 @@ const dispatchWebhook = async (req, config) => {
   const key = makeRepoKey(ref);
   const item = new RepoStore().findSubscription(key);
   if (!item) return;
-  const message = await formatWebhookMessage(platform, ref.displayName || ref.fullName, req);
-  await notifySubscribers(item.subscribers, message);
+  const { message, options } = await formatWebhookMessage(platform, ref, req, config, item.subscribers);
+  await notifySubscribers(item.subscribers, message, options);
 };
 
 const detectPlatform = req => {
@@ -138,9 +139,16 @@ const getWebhookRef = (platform, payload, config) => {
   return { platform, instance, owner, repo: repoName, fullName, displayName };
 };
 
-const formatWebhookMessage = async (platform, key, req) => {
+const formatWebhookMessage = async (platform, ref, req, config, subscribers = []) => {
+  const key = ref.displayName || ref.fullName;
   if (getWebhookEventType(req) === 'push') {
-    return buildWebhookPushMessage(platform, key, req.body, getWebhookEvent(req));
+    const { message, push } = await buildWebhookPushPayload(platform, key, req.body, getWebhookEvent(req));
+    const buttonPush = { ...push, ref };
+    if (targetsIncludeQQBot(subscribers)) await attachLocalPluginNames([buttonPush]);
+    return {
+      message,
+      options: { qqBotButtons: buildWebhookPushButtons(buttonPush, config) }
+    };
   }
 
   const event = getWebhookEvent(req);
@@ -150,12 +158,13 @@ const formatWebhookMessage = async (platform, key, req) => {
   const title = req.body?.issue?.title || req.body?.pull_request?.title || object.title || req.body?.head_commit?.message || '';
   const url = req.body?.issue?.html_url || req.body?.pull_request?.html_url || object.url
     || req.body?.repository?.html_url || req.body?.repository?.homepage || req.body?.project?.web_url || '';
-  return [
+  const message = [
     `[${getPlatformLabel(platform)} ${formatEventName(event, getWebhookEventType(req))}] ${key}`,
     `事件: ${event}${actionText}`,
     title ? `标题: ${title}` : '',
     url ? `链接: ${maskAutoLink(url)}` : ''
   ].filter(Boolean).join('\n');
+  return { message };
 };
 
 const formatEventName = (event, type = '') => {
