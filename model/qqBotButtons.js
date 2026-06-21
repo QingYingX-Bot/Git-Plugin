@@ -2,6 +2,8 @@ import path from 'node:path'
 import { makeRepoKey } from './platform.js'
 import { scanLocalRepos } from './localScanner.js'
 
+const BUTTON_STYLE_DEFAULT = 1
+
 export function getQQBotButtonConfig(config = {}) {
   const value = config.qqBotButtons || config.repoUpdate?.qqBotButtons || {}
   return {
@@ -54,19 +56,19 @@ export function buildRepoUpdateButtons(update, config) {
     ? buildCompareUrl(update.ref, config, update.previousSha, update.fullSha)
     : ''
   if (compareUrl) {
-    linkRow.push({ text: '查看对比', link: compareUrl, style: 1 })
+    linkRow.push(createLinkButton('查看对比', compareUrl))
   } else if (buttonConfig.showCommit && update.url) {
-    linkRow.push({ text: '查看提交', link: update.url, style: 1 })
+    linkRow.push(createLinkButton('查看提交', update.url))
   }
 
   const repoUrl = buildRepoWebUrl(update.ref, config)
   if (buttonConfig.showRepo && repoUrl && repoUrl !== update.url && repoUrl !== compareUrl) {
-    linkRow.push({ text: '打开仓库', link: repoUrl, style: 2 })
+    linkRow.push(createLinkButton('打开仓库', repoUrl))
   }
 
   const releaseUrl = String(update.releaseInfo?.url || '').trim()
   if (buttonConfig.showRelease && releaseUrl && ![update.url, repoUrl, compareUrl].includes(releaseUrl)) {
-    linkRow.push({ text: '查看版本', link: releaseUrl, style: 2 })
+    linkRow.push(createLinkButton('查看版本', releaseUrl))
   }
 
   const actionRow = buildUpdatePluginRow(update.localPluginName, buttonConfig)
@@ -80,12 +82,12 @@ export function buildWebhookPushButtons(push, config) {
   const ref = push.ref || {}
   const linkRow = []
   if (buttonConfig.showCompare && push.url) {
-    linkRow.push({ text: '查看对比', link: push.url, style: 1 })
+    linkRow.push(createLinkButton('查看对比', push.url))
   }
 
   const repoUrl = buildRepoWebUrl(ref, config)
   if (buttonConfig.showRepo && repoUrl && repoUrl !== push.url) {
-    linkRow.push({ text: '打开仓库', link: repoUrl, style: 2 })
+    linkRow.push(createLinkButton('打开仓库', repoUrl))
   }
 
   const actionRow = buildUpdatePluginRow(push.localPluginName, buttonConfig)
@@ -100,7 +102,7 @@ function buildUpdatePluginRow(pluginName, buttonConfig) {
       text: '更新插件',
       input: command,
       send: true,
-      style: 4
+      style: BUTTON_STYLE_DEFAULT
     }]
   }
 
@@ -109,11 +111,15 @@ function buildUpdatePluginRow(pluginName, buttonConfig) {
     clicked_text: '开始更新',
     callback: command,
     toCallback: true,
-    style: 4,
+    style: BUTTON_STYLE_DEFAULT,
     content: `确认更新 ${pluginName}？`,
     confirm_text: '更新',
     cancel_text: '取消'
   }]
+}
+
+function createLinkButton(text, link) {
+  return { text, link, style: BUTTON_STYLE_DEFAULT }
 }
 
 function normalizeUpdateAction(value) {
