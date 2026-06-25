@@ -50,6 +50,10 @@ async function getCurrentBranch(dir) {
   return branch || 'main'
 }
 
+async function getHeadSha(dir) {
+  return gitExec(dir, ['rev-parse', 'HEAD'])
+}
+
 async function getUpstreamBranch(dir) {
   return gitExec(dir, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'])
 }
@@ -101,16 +105,17 @@ async function scanDir(dir, results) {
   }
 
   if (await isGitRepo(dir)) {
-    const [remoteUrl, branch, upstream, hasDiff] = await Promise.all([
+    const [remoteUrl, branch, headSha, upstream, hasDiff] = await Promise.all([
       getRemoteUrl(dir),
       getCurrentBranch(dir),
+      getHeadSha(dir),
       getUpstreamBranch(dir),
       hasLocalDiff(dir)
     ])
     if (remoteUrl) {
       const classified = classifyRemote(remoteUrl)
       if (classified) {
-        results.push({ ...classified, branch, upstream, hasDiff, canUpdate: Boolean(upstream), dir })
+        results.push({ ...classified, branch, headSha, upstream, hasDiff, canUpdate: Boolean(upstream), dir })
       }
     }
     return // Don't recurse into git repos

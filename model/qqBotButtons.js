@@ -41,6 +41,7 @@ export async function attachLocalPluginNames(items) {
     const plugin = {
       name: pluginName,
       branch: String(repo.branch || '').trim(),
+      headSha: String(repo.headSha || '').trim(),
       hasDiff: Boolean(repo.hasDiff)
     }
     localPluginMap.set(key, plugin)
@@ -51,6 +52,11 @@ export async function attachLocalPluginNames(items) {
   for (const item of rows) {
     const ref = item.ref || item
     const plugin = findLocalPlugin(localPluginMap, ref)
+    if (isAlreadyUpdated(plugin, getTargetSha(item))) {
+      item.localPluginName = ''
+      item.localPluginHasDiff = false
+      continue
+    }
     item.localPluginName = plugin?.name || ''
     item.localPluginHasDiff = Boolean(plugin?.hasDiff)
   }
@@ -110,7 +116,9 @@ export function buildWebhookPushButtons(push, config) {
 }
 
 function buildUpdatePluginRow(plugin, buttonConfig) {
-  const pluginName = String(plugin?.name || plugin || '').trim()
+  const pluginName = typeof plugin === 'object'
+    ? String(plugin?.name || '').trim()
+    : String(plugin || '').trim()
   if (!buttonConfig.showUpdatePlugin || !pluginName) return []
   const force = Boolean(plugin?.hasDiff)
   const command = buildUpdateCommand(buttonConfig.updateCommand, pluginName, force)
@@ -189,4 +197,25 @@ function findLocalPlugin(localPluginMap, ref) {
   const branch = String(ref?.branch || '').trim()
   if (branch) return localPluginMap.get(repoBranchLookupKey(ref)) || null
   return localPluginMap.get(repoLookupKey(ref)) || null
+}
+
+function getTargetSha(item = {}) {
+  return String(item.fullSha || item.after || '').trim()
+}
+
+function isAlreadyUpdated(plugin, targetSha) {
+  if (!plugin?.name) return false
+  if (isZeroSha(targetSha)) return true
+  return sameSha(plugin.headSha, targetSha)
+}
+
+function sameSha(left = '', right = '') {
+  const a = String(left || '').trim().toLowerCase()
+  const b = String(right || '').trim().toLowerCase()
+  if (!a || !b) return false
+  return a === b || (a.length >= 7 && b.startsWith(a)) || (b.length >= 7 && a.startsWith(b))
+}
+
+function isZeroSha(value = '') {
+  return /^0{7,40}$/.test(String(value || ''))
 }
