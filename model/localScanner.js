@@ -58,21 +58,29 @@ async function getUpstreamBranch(dir) {
   return gitExec(dir, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'])
 }
 
-async function hasGitDiff(dir, args = []) {
+async function gitDiffSummary(dir, args = []) {
   try {
-    await execFileAsync('git', ['diff', ...args, '--quiet'], { cwd: dir, timeout: 5000 })
-    return false
-  } catch (err) {
-    return err?.code === 1
+    const { stdout } = await execFileAsync('git', [
+      '-c',
+      'core.fileMode=false',
+      'diff',
+      ...args,
+      '--name-status',
+      '--'
+    ], { cwd: dir, timeout: 5000 })
+    return stdout.trim()
+  } catch {
+    return ''
   }
 }
 
-async function hasLocalDiff(dir) {
+async function getLocalDiff(dir) {
   const [worktree, staged] = await Promise.all([
-    hasGitDiff(dir),
-    hasGitDiff(dir, ['--cached'])
+    gitDiffSummary(dir),
+    gitDiffSummary(dir, ['--cached'])
   ])
-  return worktree || staged
+  const diffSummary = [worktree, staged].filter(Boolean).join('\n')
+  return { hasDiff: Boolean(diffSummary), diffSummary }
 }
 
 function classifyRemote(remoteUrl) {
@@ -105,17 +113,26 @@ async function scanDir(dir, results) {
   }
 
   if (await isGitRepo(dir)) {
-    const [remoteUrl, branch, headSha, upstream, hasDiff] = await Promise.all([
+    const [remoteUrl, branch, headSha, upstream, localDiff] = await Promise.all([
       getRemoteUrl(dir),
       getCurrentBranch(dir),
       getHeadSha(dir),
       getUpstreamBranch(dir),
-      hasLocalDiff(dir)
+      getLocalDiff(dir)
     ])
     if (remoteUrl) {
       const classified = classifyRemote(remoteUrl)
       if (classified) {
-        results.push({ ...classified, branch, headSha, upstream, hasDiff, canUpdate: Boolean(upstream), dir })
+        results.push({
+          ...classified,
+          branch,
+          headSha,
+          upstream,
+          hasDiff: localDiff.hasDiff,
+          diffSummary: localDiff.diffSummary,
+          canUpdate: Boolean(upstream),
+          dir
+        })
       }
     }
     return // Don't recurse into git repos
@@ -136,6 +153,7 @@ export async function scanLocalRepos(rootDir) {
   logger.info(`[Git-Plugin] 扫描完成，发现 ${results.length} 个仓库`)
   for (const repo of results) {
     logger.debug(`[Git-Plugin]   ${repo.platform}:${repo.fullName} (${repo.branch}) @ ${repo.dir}`)
+    if (repo.diffSummary) logger.debug(`[Git-Plugin]   本地改动:\n${repo.diffSummary}`)
   }
   return results
 }
