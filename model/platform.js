@@ -27,6 +27,12 @@ export const makeRepoKey = ref => {
   return `${platform}:${instance}${fullName}`;
 };
 
+export const makeRepoBranchKey = ref => {
+  const key = makeRepoKey(ref);
+  const branch = String(ref?.branch || '').trim();
+  return branch ? `${key}:${branch}` : key;
+};
+
 export const splitFullName = fullName => {
   const [owner, repo] = String(fullName || '').split('/');
   return { owner: owner || '', repo: repo || '' };

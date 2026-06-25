@@ -50,6 +50,27 @@ async function getCurrentBranch(dir) {
   return branch || 'main'
 }
 
+async function getUpstreamBranch(dir) {
+  return gitExec(dir, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'])
+}
+
+async function hasGitDiff(dir, args = []) {
+  try {
+    await execFileAsync('git', ['diff', ...args, '--quiet'], { cwd: dir, timeout: 5000 })
+    return false
+  } catch (err) {
+    return err?.code === 1
+  }
+}
+
+async function hasLocalDiff(dir) {
+  const [worktree, staged] = await Promise.all([
+    hasGitDiff(dir),
+    hasGitDiff(dir, ['--cached'])
+  ])
+  return worktree || staged
+}
+
 function classifyRemote(remoteUrl) {
   for (const { pattern, platform } of URL_PATTERNS) {
     const match = remoteUrl.match(pattern)
@@ -80,11 +101,16 @@ async function scanDir(dir, results) {
   }
 
   if (await isGitRepo(dir)) {
-    const [remoteUrl, branch] = await Promise.all([getRemoteUrl(dir), getCurrentBranch(dir)])
+    const [remoteUrl, branch, upstream, hasDiff] = await Promise.all([
+      getRemoteUrl(dir),
+      getCurrentBranch(dir),
+      getUpstreamBranch(dir),
+      hasLocalDiff(dir)
+    ])
     if (remoteUrl) {
       const classified = classifyRemote(remoteUrl)
       if (classified) {
-        results.push({ ...classified, branch, dir })
+        results.push({ ...classified, branch, upstream, hasDiff, canUpdate: Boolean(upstream), dir })
       }
     }
     return // Don't recurse into git repos

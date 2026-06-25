@@ -466,6 +466,7 @@ const schemas = [
               {
                 field: 'repos',
                 label: '手动仓库',
+                bottomHelpMessage: '同一仓库可添加多条不同分支，检测状态按分支独立记录',
                 component: 'GSubForm',
                 componentProps: {
                   multiple: true,
@@ -562,7 +563,7 @@ const schemas = [
         {
           field: 'qqBotButtons.showUpdatePlugin',
           label: '显示更新插件按钮',
-          bottomHelpMessage: '推送仓库匹配本地插件目录时显示“更新插件”',
+          bottomHelpMessage: '匹配本地插件且当前分支具备上游时显示；存在 git diff 改动时显示“强制更新插件”',
           component: 'Switch',
         },
         {

@@ -37,13 +37,22 @@ export async function attachLocalPluginNames(items) {
   for (const repo of localRepos) {
     const pluginName = path.basename(repo.dir || '')
     const key = repoLookupKey(repo)
-    if (pluginName && key) localPluginMap.set(key, pluginName)
+    if (!pluginName || !key || repo.canUpdate === false) continue
+    const plugin = {
+      name: pluginName,
+      branch: String(repo.branch || '').trim(),
+      hasDiff: Boolean(repo.hasDiff)
+    }
+    localPluginMap.set(key, plugin)
+    if (plugin.branch) localPluginMap.set(repoBranchLookupKey(repo), plugin)
   }
 
   const rows = items instanceof Map ? items.values() : items || []
   for (const item of rows) {
     const ref = item.ref || item
-    item.localPluginName = localPluginMap.get(repoLookupKey(ref)) || ''
+    const plugin = findLocalPlugin(localPluginMap, ref)
+    item.localPluginName = plugin?.name || ''
+    item.localPluginHasDiff = Boolean(plugin?.hasDiff)
   }
 }
 
@@ -71,7 +80,10 @@ export function buildRepoUpdateButtons(update, config) {
     linkRow.push(createLinkButton('查看版本', releaseUrl))
   }
 
-  const actionRow = buildUpdatePluginRow(update.localPluginName, buttonConfig)
+  const actionRow = buildUpdatePluginRow({
+    name: update.localPluginName,
+    hasDiff: update.localPluginHasDiff
+  }, buttonConfig)
   return [linkRow, actionRow].filter(row => row.length)
 }
 
@@ -90,16 +102,23 @@ export function buildWebhookPushButtons(push, config) {
     linkRow.push(createLinkButton('打开仓库', repoUrl))
   }
 
-  const actionRow = buildUpdatePluginRow(push.localPluginName, buttonConfig)
+  const actionRow = buildUpdatePluginRow({
+    name: push.localPluginName,
+    hasDiff: push.localPluginHasDiff
+  }, buttonConfig)
   return [linkRow, actionRow].filter(row => row.length)
 }
 
-function buildUpdatePluginRow(pluginName, buttonConfig) {
+function buildUpdatePluginRow(plugin, buttonConfig) {
+  const pluginName = String(plugin?.name || plugin || '').trim()
   if (!buttonConfig.showUpdatePlugin || !pluginName) return []
-  const command = buttonConfig.updateCommand.replace(/\{plugin\}/g, pluginName)
+  const force = Boolean(plugin?.hasDiff)
+  const command = buildUpdateCommand(buttonConfig.updateCommand, pluginName, force)
+  const text = force ? '强制更新插件' : '更新插件'
+  const actionText = force ? '强制更新' : '更新'
   if (buttonConfig.updateAction === 'input') {
     return [{
-      text: '更新插件',
+      text,
       input: command,
       send: true,
       style: BUTTON_STYLE_DEFAULT
@@ -107,13 +126,13 @@ function buildUpdatePluginRow(pluginName, buttonConfig) {
   }
 
   return [{
-    text: '更新插件',
-    clicked_text: '开始更新',
+    text,
+    clicked_text: `开始${actionText}`,
     callback: command,
     toCallback: true,
     style: BUTTON_STYLE_DEFAULT,
-    content: `确认更新 ${pluginName}？`,
-    confirm_text: '更新',
+    content: `确认${actionText} ${pluginName}？`,
+    confirm_text: actionText,
     cancel_text: '取消'
   }]
 }
@@ -124,6 +143,13 @@ function createLinkButton(text, link) {
 
 function normalizeUpdateAction(value) {
   return String(value || '').trim().toLowerCase() === 'callback' ? 'callback' : 'input'
+}
+
+function buildUpdateCommand(template, pluginName, force) {
+  const command = String(template || '#更新{plugin}').replace(/\{plugin\}/g, pluginName)
+  if (!force || /强制/.test(command)) return command
+  if (command.includes('更新')) return command.replace('更新', '强制更新')
+  return `#强制更新${pluginName}`
 }
 
 function buildRepoWebUrl(ref = {}, config = {}) {
@@ -152,4 +178,15 @@ function buildCompareUrl(ref, config, fromSha, toSha) {
 
 function repoLookupKey(ref) {
   return makeRepoKey(ref).toLowerCase()
+}
+
+function repoBranchLookupKey(ref) {
+  const branch = String(ref?.branch || '').trim()
+  return branch ? `${repoLookupKey(ref)}:${branch}` : repoLookupKey(ref)
+}
+
+function findLocalPlugin(localPluginMap, ref) {
+  const branch = String(ref?.branch || '').trim()
+  if (branch) return localPluginMap.get(repoBranchLookupKey(ref)) || null
+  return localPluginMap.get(repoLookupKey(ref)) || null
 }

@@ -84,7 +84,7 @@ repoUpdate:
       autoScan: false
       # 排除列表。格式：owner/repo 或 owner/repo:branch。
       exclude: []
-      # 手动指定的仓库。
+      # 手动指定的仓库。同一仓库可配置多条不同分支，检测状态按分支独立记录。
       repos: []
       # 备注。
       note: ""
@@ -103,7 +103,7 @@ qqBotButtons:
   showCompare: false
   # 是否显示 Release / Tag 版本按钮。
   showRelease: true
-  # 是否显示更新本地插件按钮。
+  # 是否显示更新本地插件按钮。匹配本地插件且当前分支具备上游时显示；存在 git diff 改动时显示强制更新。
   showUpdatePlugin: true
   # 更新插件按钮行为。input 表示填入输入框并发送；callback 表示点击后回调执行。
   updateAction: "input"

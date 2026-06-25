@@ -1,6 +1,6 @@
 import { createProvider } from './providers/index.js'
 import { RepoStore } from './repoStore.js'
-import { makeRepoKey } from './platform.js'
+import { makeRepoBranchKey, makeRepoKey } from './platform.js'
 import { scanLocalRepos } from './localScanner.js'
 import { notifySubscribers } from './notifier.js'
 import { getGitConfig } from '../components/config.js'
@@ -25,16 +25,17 @@ export async function runRepoUpdateCheck(config) {
     if (!list.length) return
 
     // Collect all repos to check (manual + auto-scanned)
-    const allRepos = new Map() // key -> { ref, token }
+    const allRepos = new Map() // updateKey -> { ref, token, repoKey }
 
     for (const entry of list) {
       // Manual repos (with per-repo token)
       for (const repo of (entry.repos || [])) {
         const ref = buildRef(repo)
         if (!ref) continue
-        const key = makeRepoKey(ref)
+        const repoKey = makeRepoKey(ref)
+        const key = makeRepoBranchKey(ref)
         const token = String(repo?.token || '').trim()
-        if (!allRepos.has(key)) allRepos.set(key, { ref, token })
+        if (!allRepos.has(key)) allRepos.set(key, { ref, token, repoKey })
       }
 
       // Auto-scanned repos
@@ -49,8 +50,10 @@ export async function runRepoUpdateCheck(config) {
             repo: repo.fullName.split('/')[1]
           }
           if (repo.instance) ref.instance = repo.instance
-          const key = makeRepoKey(ref)
-          if (!allRepos.has(key)) allRepos.set(key, { ref, token: '' })
+          if (repo.branch) ref.branch = repo.branch
+          const repoKey = makeRepoKey(ref)
+          const key = makeRepoBranchKey(ref)
+          if (!allRepos.has(key)) allRepos.set(key, { ref, token: '', repoKey })
         }
       }
     }
@@ -60,8 +63,8 @@ export async function runRepoUpdateCheck(config) {
     const store = new RepoStore()
 
     // Load per-repo tokens from store (fallback for repos without inline token)
-    for (const [key, item] of allRepos) {
-      if (!item.token) item.token = store.getRepoToken(key)
+    for (const item of allRepos.values()) {
+      if (!item.token) item.token = store.getRepoToken(item.repoKey)
     }
 
     // Check each repo for updates
@@ -172,17 +175,20 @@ export async function runRepoUpdateCheck(config) {
 
       // Build exclude set for this entry
       const excludeSet = new Set((entry.exclude || []).map(s => String(s || '').trim()))
+      const entryKeys = new Set((entry.repos || []).map(r => {
+        const ref = buildRef(r)
+        return ref ? makeRepoBranchKey(ref) : ''
+      }).filter(Boolean))
 
       // Collect matching updates
       const entryUpdates = []
       for (const [key, update] of updates) {
         const ref = update.ref
         const excludeKey = ref.branch ? `${ref.fullName}:${ref.branch}` : ref.fullName
-        if (excludeSet.has(excludeKey)) continue
+        if (excludeSet.has(ref.fullName) || excludeSet.has(excludeKey)) continue
 
         // If this entry has repos defined, only include repos that match
-        if (entry.repos?.length) {
-          const entryKeys = new Set(entry.repos.map(r => makeRepoKey(buildRef(r))).filter(Boolean))
+        if (entryKeys.size) {
           if (!entryKeys.has(key) && !entry.autoScan) continue
         }
 
@@ -274,6 +280,7 @@ async function getCommitDetails(provider, ref, sha) {
 function formatSingleUpdate(u) {
   return [
     `[Git 仓库更新] ${u.ref.platform}:${u.ref.fullName}`,
+    u.ref.branch ? `  分支 ${u.ref.branch}` : '',
     u.rewrite ? `  回退 ${u.rewrite.fromSha}${u.rewrite.toSha ? ` -> ${u.rewrite.toSha}` : ' 已离开当前分支'}` : '',
     u.rewrite ? `  更新 ${u.rewrite.updateSha}` : '',
     u.releaseInfo ? `  ${u.releaseInfo.type === 'release' ? 'Release' : 'Tag'} ${u.releaseInfo.tag}${u.releaseInfo.title ? ` ${u.releaseInfo.title}` : ''}` : '',
