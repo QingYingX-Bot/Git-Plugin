@@ -5,6 +5,7 @@ import { scanLocalRepos } from './localScanner.js'
 import { notifySubscribers } from './notifier.js'
 import { getGitConfig } from '../components/config.js'
 import { renderRepoUpdateCard } from './repoUpdateRenderer.js'
+import { collectRepoUpdateTargets } from './repoUpdateTargets.js'
 import { maskAutoLink } from './formatters/link.js'
 import { getCommitReleaseInfo } from './releaseInfo.js'
 import { attachLocalPluginNames, buildRepoUpdateButtons, targetsIncludeQQBot } from './qqBotButtons.js'
@@ -138,80 +139,19 @@ export async function runRepoUpdateCheck(config) {
     }
 
     if (!updates.size) return
-    let localPluginNamesAttached = false
+    const pushRows = collectRepoUpdateTargets(list, updates, buildRef)
+    if (!pushRows.length) return
 
-    // Push updates to configured targets per list entry
-    for (const entry of list) {
-      const targets = []
-      for (const g of (entry.groups || [])) {
-        const raw = String(g || '').trim()
-        if (!raw) continue
-        // Support "bot_id:group_hash" format — convert to "bot_id:group:group_hash"
-        // e.g. "3889750061:FB20E66229B4C2956BC8E2347CB557F5" -> "3889750061:group:FB20E66229B4C2956BC8E2347CB557F5"
-        // "FB20E66229B4C2956BC8E2347CB557F5" -> "group:FB20E66229B4C2956BC8E2347CB557F5"
-        const parts = raw.split(':')
-        if (parts.length >= 2) {
-          // Has bot_id prefix: "bot_id:group_hash" -> "bot_id:group:group_hash"
-          targets.push(`${parts[0]}:group:${parts.slice(1).join(':')}`)
-        } else {
-          // Plain group id: "group_hash" -> "group:group_hash"
-          targets.push(`group:${raw}`)
-        }
-      }
-      for (const f of (entry.friends || [])) {
-        const raw = String(f || '').trim()
-        if (!raw) continue
-        // Support "bot_id:user_id" format — convert to "bot_id:private:user_id"
-        const parts = raw.split(':')
-        if (parts.length >= 2) {
-          // Has bot_id prefix: "bot_id:user_id" -> "bot_id:private:user_id"
-          targets.push(`${parts[0]}:private:${parts.slice(1).join(':')}`)
-        } else {
-          // Plain user id: "user_id" -> "private:user_id"
-          targets.push(`private:${raw}`)
-        }
-      }
-      if (!targets.length) continue
+    const allTargets = pushRows.flatMap(row => row.targets)
+    if (targetsIncludeQQBot(allTargets)) await attachLocalPluginNames(updates)
 
-      // Build exclude set for this entry
-      const excludeSet = new Set((entry.exclude || []).map(s => String(s || '').trim()))
-      const entryKeys = new Set((entry.repos || []).map(r => {
-        const ref = buildRef(r)
-        return ref ? makeRepoBranchKey(ref) : ''
-      }).filter(Boolean))
-
-      // Collect matching updates
-      const entryUpdates = []
-      for (const [key, update] of updates) {
-        const ref = update.ref
-        const excludeKey = ref.branch ? `${ref.fullName}:${ref.branch}` : ref.fullName
-        if (excludeSet.has(ref.fullName) || excludeSet.has(excludeKey)) continue
-
-        // If this entry has repos defined, only include repos that match
-        if (entryKeys.size) {
-          if (!entryKeys.has(key) && !entry.autoScan) continue
-        }
-
-        entryUpdates.push(update)
-      }
-
-      if (!entryUpdates.length) continue
-      if (!localPluginNamesAttached && targetsIncludeQQBot(targets)) {
-        await attachLocalPluginNames(updates)
-        localPluginNamesAttached = true
-      }
-
-      // Try to render each update as a card image
-      for (const update of entryUpdates) {
-        const pushOptions = { qqBotButtons: buildRepoUpdateButtons(update, config) }
-        const img = await renderRepoUpdateCard(update).catch(() => false)
-        if (img) {
-          await notifySubscribers(targets, img, pushOptions)
-        } else {
-          // Fallback to plain text
-          await notifySubscribers(targets, formatSingleUpdate(update), pushOptions)
-        }
-      }
+    // Render once per update, then send the same message to all deduped targets.
+    for (const { key, update, targets } of pushRows) {
+      const pushOptions = { qqBotButtons: buildRepoUpdateButtons(update, config) }
+      const img = await renderRepoUpdateCard(update).catch(() => false)
+      const message = img || formatSingleUpdate(update)
+      logger.debug(`[Git-Plugin] 推送 ${key} 到 ${targets.length} 个目标`)
+      await notifySubscribers(targets, message, pushOptions)
     }
 
     logger.info(`[Git-Plugin] 仓库更新检测完成，${updates.size} 个仓库有更新`)

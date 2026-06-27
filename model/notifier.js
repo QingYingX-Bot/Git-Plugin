@@ -53,7 +53,7 @@ export const sendOriginMessage = async (origin, message) => {
 };
 
 export const notifySubscribers = async (subscribers, message, options = {}) => {
-  for (const origin of subscribers || []) {
+  for (const origin of [...new Set(subscribers || [])]) {
     try {
       await sendOriginMessage(origin, withQQBotButtons(origin, message, options.qqBotButtons || []));
     } catch (err) {
