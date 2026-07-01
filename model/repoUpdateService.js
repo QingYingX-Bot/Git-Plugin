@@ -125,6 +125,7 @@ export async function runRepoUpdateCheck(config) {
           message: latest.message || latest.title || '',
           author: latest.author || '',
           authorAvatar: latest.authorAvatar || '',
+          time: latest.committedAt || latest.createdAt || '',
           url: latest.webUrl || '',
           filesChanged: commitDetails.filesChanged || 0,
           additions: commitDetails.additions || 0,

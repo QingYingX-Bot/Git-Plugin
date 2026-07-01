@@ -3,7 +3,7 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import puppeteer from '../../../lib/puppeteer/puppeteer.js'
 import { getGitConfig, getPluginRoot } from '../components/config.js'
-import { formatDate, shortText } from './formatters/common.js'
+import { shortText } from './formatters/common.js'
 import { getPlatformLabel } from './platform.js'
 import MarkdownIt from 'markdown-it'
 import { cleanupTempFiles, localizeImageUrl, toDataUrl } from './renderAssets.js'
@@ -17,6 +17,17 @@ const PLATFORM_STYLES = {
 
 const md = new MarkdownIt()
 const FONT_URL = pathToFileURL(path.join(getPluginRoot(), 'resources', 'fonts', 'HarmonyOS_SansSC_Bold.ttf')).href
+const BIZ_TIME_ZONE = 'Asia/Shanghai'
+const DATE_TIME_FORMATTER = new Intl.DateTimeFormat('zh-CN', {
+  timeZone: BIZ_TIME_ZONE,
+  year: 'numeric',
+  month: 'numeric',
+  day: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: false
+})
 
 const ICON_CACHE = new Map()
 
@@ -33,6 +44,7 @@ export const renderRepoUpdateCard = async update => {
     const lines = message.split('\n')
     const title = lines[0] || '新提交'
     const body = lines.slice(1).join('\n').trim()
+    const commitTime = update.time || ''
 
     return await puppeteer.screenshot('Git-Plugin/repo-update-card', {
       tplFile: path.join(getPluginRoot(), 'resources', 'repo-update-card.html'),
@@ -58,7 +70,8 @@ export const renderRepoUpdateCard = async update => {
         authorAvatar,
         sha: update.sha || 'unknown',
         branch: ref.branch || update.branch || 'main',
-        time: formatDate(update.time || new Date().toISOString()),
+        time: formatDateTime(commitTime),
+        metaTime: formatMetaTime(commitTime),
         filesChanged: update.filesChanged || 0,
         additions: update.additions || 0,
         deletions: update.deletions || 0,
@@ -130,10 +143,46 @@ const normalizeReleaseInfo = releaseInfo => {
     typeLabel: type === 'release' ? 'Release' : 'Tag',
     tag: shortText(releaseInfo.tag, 28),
     title: shortText(releaseInfo.title, 80),
-    publishedAt: releaseInfo.publishedAt ? formatDate(releaseInfo.publishedAt) : '',
+    publishedAt: releaseInfo.publishedAt ? formatDateTime(releaseInfo.publishedAt) : '',
     prerelease: Boolean(releaseInfo.prerelease),
     draft: Boolean(releaseInfo.draft)
   }
 }
 
 const shortSha = value => String(value || '').trim().slice(0, 7)
+
+const formatMetaTime = value => {
+  const relative = formatRelativeTime(value)
+  return relative || (parseDate(value) ? formatDateTime(value) : '')
+}
+
+const formatDateTime = value => {
+  const date = parseDate(value)
+  if (!date) return '未知'
+  return DATE_TIME_FORMATTER.format(date)
+}
+
+const formatRelativeTime = value => {
+  const date = parseDate(value)
+  if (!date) return ''
+  const diffMs = Date.now() - date.getTime()
+  if (diffMs < 0) return ''
+
+  const minute = 60 * 1000
+  const hour = 60 * minute
+  const day = 24 * hour
+
+  if (diffMs < minute) return '刚刚'
+  if (diffMs < 2 * minute) return '一分钟前'
+  if (diffMs < hour) return `${Math.floor(diffMs / minute)}分钟前`
+  if (diffMs < 2 * hour) return '一小时前'
+  if (diffMs < day) return `${Math.floor(diffMs / hour)}小时前`
+  if (diffMs < 2 * day) return '昨天'
+  if (diffMs < 7 * day) return `${Math.floor(diffMs / day)}天前`
+  return ''
+}
+
+const parseDate = value => {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date
+}

@@ -215,6 +215,12 @@
       font-size: 12px;
     }
 
+    .ref-time {
+      color: var(--faint);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
     .ref-separator {
       color: var(--faint);
       font-size: 12px;
@@ -440,6 +446,7 @@
               <span class="ref-action">更新</span>
               {{/if}}
               <code>{{update.sha}}</code>
+              {{if update.metaTime}}<span class="ref-separator">·</span><span class="ref-time">{{update.metaTime}}</span>{{/if}}
             </div>
           </div>
         </div>

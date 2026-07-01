@@ -53,11 +53,42 @@ export const sendOriginMessage = async (origin, message) => {
 };
 
 export const notifySubscribers = async (subscribers, message, options = {}) => {
-  for (const origin of [...new Set(subscribers || [])]) {
+  for (const origin of dedupeOrigins(subscribers)) {
     try {
       await sendOriginMessage(origin, withQQBotButtons(origin, message, options.qqBotButtons || []));
     } catch (err) {
       logger.warn(`[Git-Plugin] 推送到 ${origin} 失败: ${err.message}`);
     }
+  }
+};
+
+const dedupeOrigins = origins => {
+  const rows = new Map();
+  for (const origin of origins || []) {
+    const key = originDedupKey(origin);
+    const current = rows.get(key);
+    if (!current || preferOrigin(origin, current)) rows.set(key, origin);
+  }
+  return [...rows.values()];
+};
+
+const originDedupKey = origin => {
+  try {
+    const { type, id } = parseOrigin(origin);
+    return `${type}:${id}`;
+  } catch {
+    return String(origin || '');
+  }
+};
+
+const preferOrigin = (next, current) => {
+  try {
+    const nextBotId = parseOrigin(next).botId;
+    const currentBotId = parseOrigin(current).botId;
+    if (nextBotId && !currentBotId) return true;
+    if (nextBotId && currentBotId) return isQQBotTarget(nextBotId) && !isQQBotTarget(currentBotId);
+    return false;
+  } catch {
+    return false;
   }
 };

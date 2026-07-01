@@ -1,6 +1,6 @@
 tmp/
 data/
-.codex-tasks
+.codex-tasks/
 node_modules/
 config/config/*
 !config/config/.gitignore

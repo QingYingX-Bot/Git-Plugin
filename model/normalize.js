@@ -48,6 +48,7 @@ export const normalizeCommit = (platform, data = {}, fallback = {}) => ({
   author: userName(data.commit?.author ?? data.author) || text(data.commit?.author?.name ?? data.author?.name),
   authorAvatar: firstUrl(data.author?.avatar_url, data.author?.avatar),
   createdAt: text(data.commit?.author?.date ?? data.created_at ?? data.date),
+  committedAt: text(data.commit?.committer?.date ?? data.committed_date ?? data.committer?.date ?? data.created_at ?? data.date),
   webUrl: firstUrl(data.html_url, data.web_url),
   raw: data
 });
