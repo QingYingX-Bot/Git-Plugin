@@ -42,8 +42,11 @@ export const renderRepoUpdateCard = async update => {
     const authorAvatar = await fetchAvatarAsDataUrl(avatarUrl, cleanupFiles)
     const message = update.message || '新提交'
     const lines = message.split('\n')
-    const title = lines[0] || '新提交'
-    const body = lines.slice(1).join('\n').trim()
+    const branch = ref.branch || update.branch || 'main'
+    const commits = normalizeUpdateCommits(update.commits)
+    const commitCount = Number(update.commitCount || commits.length || 1)
+    const title = commitCount > 1 ? `${commitCount} 个提交更新到 ${branch}` : (lines[0] || '新提交')
+    const body = commitCount > 1 ? '' : lines.slice(1).join('\n').trim()
     const commitTime = update.time || ''
 
     return await puppeteer.screenshot('Git-Plugin/repo-update-card', {
@@ -66,10 +69,13 @@ export const renderRepoUpdateCard = async update => {
         theme,
         title: shortText(title, 100),
         messageHtml: body ? md.render(body) : '',
+        commitCount,
+        commits,
+        hiddenCommitCount: Math.max(0, commitCount - commits.length),
         author: update.author || 'unknown',
         authorAvatar,
         sha: update.sha || 'unknown',
-        branch: ref.branch || update.branch || 'main',
+        branch,
         time: formatDateTime(commitTime),
         metaTime: formatMetaTime(commitTime),
         filesChanged: update.filesChanged || 0,
@@ -106,8 +112,10 @@ const getAuthorAvatarUrl = (platform, author) => {
 
   switch (platform) {
     case 'github':
+      if (!/^[\w-]+$/.test(author)) return ''
       return `https://github.com/${author}.png?size=56`
     case 'gitee':
+      if (!/^[\w.-]+$/.test(author)) return ''
       return `https://gitee.com/${author}.png`
     default:
       return ''
@@ -150,6 +158,23 @@ const normalizeReleaseInfo = releaseInfo => {
 }
 
 const shortSha = value => String(value || '').trim().slice(0, 7)
+
+const normalizeUpdateCommits = commits => Array.isArray(commits)
+  ? commits.filter(item => item?.sha || item?.title).slice(0, 8).map(item => ({
+    sha: shortSha(item.sha),
+    title: shortText(item.title || item.message || '新提交', 88),
+    actor: shortText(item.actor || formatCommitActor(item), 86),
+    time: formatMetaTime(item.time),
+    url: item.url || ''
+  }))
+  : []
+
+const formatCommitActor = item => {
+  const author = String(item?.author || '').trim()
+  const committer = String(item?.committer || '').trim()
+  if (author && committer && author.toLowerCase() !== committer.toLowerCase()) return `${author} 撰写 · ${committer} 提交`
+  return author || committer || ''
+}
 
 const formatMetaTime = value => {
   const relative = formatRelativeTime(value)

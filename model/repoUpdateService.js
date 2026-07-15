@@ -9,9 +9,11 @@ import { collectRepoUpdateTargets } from './repoUpdateTargets.js'
 import { maskAutoLink } from './formatters/link.js'
 import { getCommitReleaseInfo } from './releaseInfo.js'
 import { attachLocalPluginNames, buildRepoUpdateButtons, targetsIncludeQQBot } from './qqBotButtons.js'
+import { collectChangedCommits, summarizeCommitActors, toUpdateCommit } from './repoUpdateCommits.js'
 
 const HISTORY_PAGE_SIZE = 50
 const HISTORY_MAX_PAGES = 1
+const COMMIT_LIST_LIMIT = 8
 
 let running = false
 
@@ -112,8 +114,11 @@ export async function runRepoUpdateCheck(config) {
           toSha: shortSha(rollbackTarget),
           time: new Date().toISOString()
         } : null)
+        const changedCommits = collectChangedCommits(commits, lastSha, rollbackTarget)
+        const updateCommits = changedCommits.length ? changedCommits : [latest]
+        const commitActors = summarizeCommitActors(updateCommits)
         const [commitDetails, releaseInfo] = await Promise.all([
-          getCommitDetails(provider, ref, sha).catch(() => ({})),
+          getCommitDetailsSummary(provider, ref, updateCommits).catch(() => ({})),
           getCommitReleaseInfo(provider, ref, sha).catch(() => null)
         ])
 
@@ -123,10 +128,12 @@ export async function runRepoUpdateCheck(config) {
           fullSha: sha,
           previousSha: lastSha,
           message: latest.message || latest.title || '',
-          author: latest.author || '',
-          authorAvatar: latest.authorAvatar || '',
+          author: commitActors.text || latest.author || '',
+          authorAvatar: commitActors.avatar || latest.authorAvatar || '',
           time: latest.committedAt || latest.createdAt || '',
           url: latest.webUrl || '',
+          commitCount: updateCommits.length,
+          commits: updateCommits.slice(0, COMMIT_LIST_LIMIT).map(toUpdateCommit),
           filesChanged: commitDetails.filesChanged || 0,
           additions: commitDetails.additions || 0,
           deletions: commitDetails.deletions || 0,
@@ -202,6 +209,15 @@ function shortSha(value = '') {
   return String(value || '').trim().slice(0, 7)
 }
 
+async function getCommitDetailsSummary(provider, ref, commits = []) {
+  const rows = await Promise.all(commits.map(item => getCommitDetails(provider, ref, item.sha).catch(() => ({}))))
+  return rows.reduce((total, item) => ({
+    filesChanged: total.filesChanged + Number(item.filesChanged || 0),
+    additions: total.additions + Number(item.additions || 0),
+    deletions: total.deletions + Number(item.deletions || 0)
+  }), { filesChanged: 0, additions: 0, deletions: 0 })
+}
+
 async function getCommitDetails(provider, ref, sha) {
   try {
     // GitHub API: GET /repos/{owner}/{repo}/commits/{sha}
@@ -219,14 +235,16 @@ async function getCommitDetails(provider, ref, sha) {
 }
 
 function formatSingleUpdate(u) {
-  return [
+  const lines = [
     `[Git 仓库更新] ${u.ref.platform}:${u.ref.fullName}`,
     u.ref.branch ? `  分支 ${u.ref.branch}` : '',
     u.rewrite ? `  回退 ${u.rewrite.fromSha}${u.rewrite.toSha ? ` -> ${u.rewrite.toSha}` : ' 已离开当前分支'}` : '',
     u.rewrite ? `  更新 ${u.rewrite.updateSha}` : '',
     u.releaseInfo ? `  ${u.releaseInfo.type === 'release' ? 'Release' : 'Tag'} ${u.releaseInfo.tag}${u.releaseInfo.title ? ` ${u.releaseInfo.title}` : ''}` : '',
-    u.message ? `  ${String(u.message).split('\n')[0].trim()}` : '',
+    u.commitCount > 1 ? `  ${u.commitCount} 个提交` : '',
+    ...(u.commits?.length > 1 ? u.commits.map(item => `  - ${item.sha} ${item.title}${item.actor ? ` (${item.actor})` : ''}`) : [u.message ? `  ${String(u.message).split('\n')[0].trim()}` : '']),
     u.author ? `  👤 ${u.author}` : '',
     u.url ? `  🔗 ${maskAutoLink(u.url)}` : ''
-  ].filter(Boolean).join('\n')
+  ]
+  return lines.filter(Boolean).join('\n')
 }

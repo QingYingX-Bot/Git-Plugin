@@ -15,7 +15,7 @@ export const normalizePlatform = value => {
 export const getPlatformLabel = platform => PLATFORM_LABELS[platform] || platform;
 
 export const normalizeRepoSlug = (slug, useLowercase = true) => {
-  const value = String(slug || '').trim().replace(/^\/+|\/+$/g, '');
+  const value = String(slug || '').trim().replace(/^\/+|\/+$/g, '').replace(/\.git$/i, '');
   if (!/^[\w.-]+\/[\w.-]+$/.test(value)) return '';
   return useLowercase ? value.toLowerCase() : value;
 };

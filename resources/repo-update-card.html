@@ -289,6 +289,59 @@
       font-size: 13px;
     }
 
+    .commit-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+    }
+
+    .commit-item {
+      display: flex;
+      gap: 11px;
+      min-width: 0;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--card-soft);
+    }
+
+    .commit-sha {
+      flex: 0 0 auto;
+      color: var(--accent);
+      font-size: 12px;
+      line-height: 1.45;
+      font-weight: 820;
+    }
+
+    .commit-main {
+      min-width: 0;
+    }
+
+    .commit-title {
+      color: var(--text);
+      font-size: 15px;
+      line-height: 1.38;
+      font-weight: 780;
+      overflow-wrap: anywhere;
+    }
+
+    .commit-meta {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.2;
+      font-weight: 650;
+    }
+
+    .hidden-commit {
+      color: var(--faint);
+      font-size: 13px;
+      line-height: 1;
+      font-weight: 700;
+    }
+
     .event-list {
       display: grid;
       margin-top: 18px;
@@ -461,6 +514,21 @@
         </div>
         {{/if}}
 
+        {{if update.commits && update.commits.length > 1}}
+        <div class="commit-list">
+          {{each update.commits commit}}
+          <div class="commit-item">
+            <code class="commit-sha">{{commit.sha}}</code>
+            <div class="commit-main">
+              <div class="commit-title">{{commit.title}}</div>
+              {{if commit.actor || commit.time}}<div class="commit-meta">{{commit.actor}}{{if commit.actor && commit.time}} · {{/if}}{{commit.time}}</div>{{/if}}
+            </div>
+          </div>
+          {{/each}}
+          {{if update.hiddenCommitCount > 0}}<div class="hidden-commit">还有 {{update.hiddenCommitCount}} 个提交</div>{{/if}}
+        </div>
+        {{/if}}
+
         {{if update.releaseInfo}}
         <div class="event-list">
           <div class="event">
@@ -478,6 +546,7 @@
 
         <div class="stats">
           <div class="numbers">
+            {{if update.commitCount > 1}}<span>{{update.commitCount}} 提交</span>{{/if}}
             <span>{{update.filesChanged}} 文件变更</span>
             <span class="add">+{{update.additions}}</span>
             <span class="del">-{{update.deletions}}</span>
