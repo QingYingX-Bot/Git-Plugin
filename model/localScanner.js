@@ -104,6 +104,12 @@ function classifyRemote(remoteUrl) {
   return null
 }
 
+const scanCache = new Map()
+
+function normalizeScanRoot(rootDir) {
+  return path.resolve(rootDir || path.join(process.cwd(), 'plugins'))
+}
+
 async function scanDir(dir, results) {
   let entries
   try {
@@ -147,7 +153,7 @@ async function scanDir(dir, results) {
 
 export async function scanLocalRepos(rootDir) {
   const results = []
-  const scanRoot = rootDir || path.join(process.cwd(), 'plugins')
+  const scanRoot = normalizeScanRoot(rootDir)
   logger.info(`[Git-Plugin] 开始扫描本地仓库: ${scanRoot}`)
   await scanDir(scanRoot, results)
   logger.info(`[Git-Plugin] 扫描完成，发现 ${results.length} 个仓库`)
@@ -156,4 +162,32 @@ export async function scanLocalRepos(rootDir) {
     if (repo.diffSummary) logger.debug(`[Git-Plugin]   本地改动:\n${repo.diffSummary}`)
   }
   return results
+}
+
+export function initLocalRepoScan(rootDir) {
+  const scanRoot = normalizeScanRoot(rootDir)
+  const cached = scanCache.get(scanRoot)
+  if (cached) return cached.promise
+
+  const entry = { results: [], done: false, promise: null }
+  entry.promise = scanLocalRepos(scanRoot)
+    .then(results => {
+      entry.results = results
+      entry.done = true
+      return results
+    })
+    .catch(err => {
+      scanCache.delete(scanRoot)
+      throw err
+    })
+  scanCache.set(scanRoot, entry)
+  return entry.promise
+}
+
+export async function getStartupScannedLocalRepos(rootDir) {
+  const scanRoot = normalizeScanRoot(rootDir)
+  const cached = scanCache.get(scanRoot)
+  if (!cached) return []
+  if (cached.done) return cached.results
+  return cached.promise
 }

@@ -145,7 +145,7 @@ const formatWebhookMessage = async (platform, ref, req, config, subscribers = []
     const { message, push } = await buildWebhookPushPayload(platform, key, req.body, getWebhookEvent(req));
     const branch = String(push.branch || '').trim();
     const buttonPush = { ...push, ref: branch ? { ...ref, branch } : ref };
-    if (targetsIncludeQQBot(subscribers)) await attachLocalPluginNames([buttonPush]);
+    if (targetsIncludeQQBot(subscribers)) await attachLocalPluginNames([buttonPush], String(config.repoUpdate?.scanPath || '').trim() || undefined);
     return {
       message,
       options: { qqBotButtons: buildWebhookPushButtons(buttonPush, config) }

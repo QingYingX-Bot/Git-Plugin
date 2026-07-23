@@ -1,6 +1,6 @@
 import path from 'node:path'
 import { makeRepoKey } from './platform.js'
-import { scanLocalRepos } from './localScanner.js'
+import { getStartupScannedLocalRepos } from './localScanner.js'
 
 const BUTTON_STYLE_DEFAULT = 1
 
@@ -26,8 +26,8 @@ export function targetsIncludeQQBot(targets = []) {
   })
 }
 
-export async function attachLocalPluginNames(items) {
-  const localRepos = await scanLocalRepos(path.join(process.cwd(), 'plugins')).catch(err => {
+export async function attachLocalPluginNames(items, rootDir) {
+  const localRepos = await getStartupScannedLocalRepos(rootDir).catch(err => {
     logger.warn(`[Git-Plugin] 扫描本地插件仓库失败: ${err.message}`)
     return []
   })

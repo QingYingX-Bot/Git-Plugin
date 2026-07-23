@@ -1,7 +1,7 @@
 import { createProvider } from './providers/index.js'
 import { RepoStore } from './repoStore.js'
 import { makeRepoBranchKey, makeRepoKey } from './platform.js'
-import { scanLocalRepos } from './localScanner.js'
+import { getStartupScannedLocalRepos } from './localScanner.js'
 import { notifySubscribers } from './notifier.js'
 import { getGitConfig } from '../components/config.js'
 import { renderRepoUpdateCard } from './repoUpdateRenderer.js'
@@ -44,7 +44,7 @@ export async function runRepoUpdateCheck(config) {
       // Auto-scanned repos
       if (entry.autoScan) {
         const scanPath = String(config.repoUpdate?.scanPath || '').trim() || undefined
-        const scanned = await scanLocalRepos(scanPath)
+        const scanned = await getStartupScannedLocalRepos(scanPath)
         for (const repo of scanned) {
           const ref = {
             platform: repo.platform,
@@ -151,7 +151,7 @@ export async function runRepoUpdateCheck(config) {
     if (!pushRows.length) return
 
     const allTargets = pushRows.flatMap(row => row.targets)
-    if (targetsIncludeQQBot(allTargets)) await attachLocalPluginNames(updates)
+    if (targetsIncludeQQBot(allTargets)) await attachLocalPluginNames(updates, String(config.repoUpdate?.scanPath || '').trim() || undefined)
 
     // Render once per update, then send the same message to all deduped targets.
     for (const { key, update, targets } of pushRows) {
