@@ -1,4 +1,4 @@
-import { makeRepoBranchKey } from './platform.js'
+import { makeRepoBranchKey, makeRepoKey } from './platform.js'
 
 export function collectRepoUpdateTargets(list = [], updates = new Map(), buildRef) {
   const targetMap = new Map()
@@ -21,9 +21,11 @@ export function collectRepoUpdateTargets(list = [], updates = new Map(), buildRe
     }
   }
 
-  return [...targetMap.values()]
+  const rows = [...targetMap.values()]
     .map(item => ({ key: item.key, update: item.update, targets: [...item.targets.values()] }))
     .filter(item => item.targets.length)
+
+  return dedupeUpdateDeliveries(rows)
 }
 
 function normalizeEntryTargets(entry = {}) {
@@ -65,6 +67,44 @@ function preferTarget(next, current) {
   const nextParts = String(next || '').split(':')
   const currentParts = String(current || '').split(':')
   return nextParts.length >= 3 && currentParts.length < 3
+}
+
+function dedupeUpdateDeliveries(rows = []) {
+  const deliveries = new Map()
+
+  rows.forEach((row, rowIndex) => {
+    const updateKey = updateDedupKey(row)
+    for (const target of row.targets || []) {
+      const key = `${updateKey}\t${targetDedupKey(target)}`
+      const candidate = { row, rowIndex, target }
+      const current = deliveries.get(key)
+      if (!current || preferDelivery(candidate, current)) deliveries.set(key, candidate)
+    }
+  })
+
+  const targetsByRow = new Map()
+  for (const { rowIndex, target } of deliveries.values()) {
+    const targets = targetsByRow.get(rowIndex) || []
+    targets.push(target)
+    targetsByRow.set(rowIndex, targets)
+  }
+
+  return rows
+    .map((row, rowIndex) => ({ ...row, targets: targetsByRow.get(rowIndex) || [] }))
+    .filter(row => row.targets.length)
+}
+
+function updateDedupKey(row = {}) {
+  const update = row.update || {}
+  const sha = String(update.fullSha || update.sha || '').trim().toLowerCase()
+  if (!sha) return `key:${row.key || ''}`
+  return `${makeRepoKey(update.ref || {}).toLowerCase()}:${sha}`
+}
+
+function preferDelivery(next, current) {
+  const nextBranch = String(next.row.update?.ref?.branch || '').trim()
+  const currentBranch = String(current.row.update?.ref?.branch || '').trim()
+  return Boolean(nextBranch && !currentBranch)
 }
 
 function shouldPushUpdate(key, update, entry, entryKeys, excludeSet) {
