@@ -8,16 +8,20 @@ export function collectChangedCommits(commits = [], lastSha = '', stopSha = '') 
 
 export function summarizeCommitActors(commits = []) {
   const users = []
+  const committers = []
   const seen = new Set()
+  const seenCommitters = new Set()
   for (const commit of commits) {
     addCommitUser(users, seen, commit?.author, commit?.authorAvatar)
+    addCommitUser(committers, seenCommitters, commit?.committer, commit?.committerAvatar)
     addCommitUser(users, seen, commit?.committer, commit?.committerAvatar)
   }
 
   const names = users.map(item => item.name)
   return {
     text: names.length > 3 ? `${names.slice(0, 3).join('、')} 等 ${names.length} 人` : names.join('、'),
-    avatar: users[0]?.avatar || ''
+    avatar: users.find(item => item.avatar)?.avatar || '',
+    committerAvatar: committers.find(item => item.avatar)?.avatar || ''
   }
 }
 

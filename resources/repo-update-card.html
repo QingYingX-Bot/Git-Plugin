@@ -247,6 +247,18 @@
       font-weight: 760;
     }
 
+    .avatar-stack {
+      display: inline-flex;
+      align-items: center;
+      flex: 0 0 auto;
+      min-width: 24px;
+    }
+
+    .avatar-stack .author-avatar + .author-avatar {
+      margin-left: -7px;
+      border-color: var(--card);
+    }
+
     .message {
       margin-top: 17px;
     }
@@ -483,7 +495,10 @@
           </div>
           <div class="title-meta">
             <div class="title-author">
-              <img class="author-avatar" src="{{update.authorAvatar}}" alt="{{update.author}}" onload="this.classList.add('loaded')" onerror="this.classList.add('error')">
+              <span class="avatar-stack">
+                <img class="author-avatar" src="{{update.authorAvatar}}" alt="{{update.author}} 作者头像" onload="this.classList.add('loaded')" onerror="this.classList.add('error')">
+                {{if update.showCommitterAvatar}}<img class="author-avatar" src="{{update.committerAvatar}}" alt="提交者头像" onload="this.classList.add('loaded')" onerror="this.classList.add('error')">{{/if}}
+              </span>
               <span>{{update.author}}</span>
             </div>
             <span class="meta-dot"></span>

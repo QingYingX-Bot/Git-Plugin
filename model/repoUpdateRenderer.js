@@ -38,8 +38,20 @@ export const renderRepoUpdateCard = async update => {
   const cleanupFiles = []
   try {
     const theme = normalizeTheme(update.theme || getGitConfig()?.repoUpdate?.theme)
-    const avatarUrl = update.authorAvatar || getAuthorAvatarUrl(platform, update.author)
-    const authorAvatar = await fetchAvatarAsDataUrl(avatarUrl, cleanupFiles)
+    const authorAvatarUrl = update.authorAvatar || ''
+    const committerAvatarUrl = update.committerAvatar || ''
+    const fallbackAvatarUrl = !authorAvatarUrl && !committerAvatarUrl
+      ? getAuthorAvatarUrl(platform, update.author)
+      : ''
+    const [authorImage, committerImage, fallbackImage] = await Promise.all([
+      fetchAvatarAsDataUrl(authorAvatarUrl, cleanupFiles),
+      committerAvatarUrl && committerAvatarUrl !== authorAvatarUrl
+        ? fetchAvatarAsDataUrl(committerAvatarUrl, cleanupFiles)
+        : Promise.resolve(''),
+      fetchAvatarAsDataUrl(fallbackAvatarUrl, cleanupFiles)
+    ])
+    const authorAvatar = authorImage || committerImage || fallbackImage
+    const committerAvatar = committerImage && committerImage !== authorAvatar ? committerImage : ''
     const message = update.message || '新提交'
     const lines = message.split('\n')
     const branch = ref.branch || update.branch || 'main'
@@ -74,6 +86,8 @@ export const renderRepoUpdateCard = async update => {
         hiddenCommitCount: Math.max(0, commitCount - commits.length),
         author: update.author || 'unknown',
         authorAvatar,
+        committerAvatar,
+        showCommitterAvatar: Boolean(committerAvatar),
         sha: update.sha || 'unknown',
         branch,
         time: formatDateTime(commitTime),
