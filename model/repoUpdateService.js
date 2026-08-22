@@ -10,6 +10,7 @@ import { maskAutoLink } from './formatters/link.js'
 import { getCommitReleaseInfo } from './releaseInfo.js'
 import { attachLocalPluginNames, buildRepoUpdateButtons, targetsIncludeQQBot } from './qqBotButtons.js'
 import { collectChangedCommits, summarizeCommitActors, toUpdateCommit } from './repoUpdateCommits.js'
+import { extractCommitDetailsFromCommit, fetchCommitDetails } from './repoCommitDetails.js'
 
 const HISTORY_PAGE_SIZE = 50
 const HISTORY_MAX_PAGES = 1
@@ -117,7 +118,7 @@ export async function runRepoUpdateCheck(config) {
         const updateCommits = changedCommits.length ? changedCommits : [latest]
         const commitActors = summarizeCommitActors(updateCommits)
         const [commitDetails, releaseInfo] = await Promise.all([
-          getCommitDetailsSummary(provider, ref, updateCommits).catch(() => ({})),
+          getCommitDetailsSummary(provider, ref, updateCommits),
           getCommitReleaseInfo(provider, ref, sha).catch(() => null)
         ])
 
@@ -223,28 +224,21 @@ function shortSha(value = '') {
 }
 
 async function getCommitDetailsSummary(provider, ref, commits = []) {
-  const rows = await Promise.all(commits.map(item => getCommitDetails(provider, ref, item.sha).catch(() => ({}))))
+  const rows = await Promise.all(commits.map(async item => {
+    try {
+      return await fetchCommitDetails(provider, ref, item.sha)
+    } catch (err) {
+      globalThis.logger?.warn?.(
+        `[Git-Plugin] 获取 ${ref.platform}:${ref.fullName} 提交 ${shortSha(item.sha)} 详情失败，使用提交列表统计: ${err.message}`
+      )
+      return extractCommitDetailsFromCommit(item)
+    }
+  }))
   return rows.reduce((total, item) => ({
     filesChanged: total.filesChanged + Number(item.filesChanged || 0),
     additions: total.additions + Number(item.additions || 0),
     deletions: total.deletions + Number(item.deletions || 0)
   }), { filesChanged: 0, additions: 0, deletions: 0 })
-}
-
-async function getCommitDetails(provider, ref, sha) {
-  try {
-    // GitHub API: GET /repos/{owner}/{repo}/commits/{sha}
-    const data = await provider.get(`/repos/${provider.repoPath(ref)}/commits/${sha}`)
-    const stats = data.stats || {}
-    const files = data.files || []
-    return {
-      filesChanged: files.length,
-      additions: stats.additions || 0,
-      deletions: stats.deletions || 0
-    }
-  } catch {
-    return { filesChanged: 0, additions: 0, deletions: 0 }
-  }
 }
 
 function formatSingleUpdate(u) {

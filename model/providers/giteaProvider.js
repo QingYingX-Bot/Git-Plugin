@@ -28,9 +28,11 @@ export class GiteaProvider {
   async listCommits(ref, options = {}) {
     this.assertInstance();
     const query = {
-      per_page: options.perPage || 10,
+      limit: options.perPage || 10,
       page: options.page || 1,
-      sha: ref.branch || undefined
+      sha: ref.branch || undefined,
+      stat: true,
+      files: true
     };
     const data = await this.get(`/repos/${this.repoPath(ref)}/commits`, query);
     return Array.isArray(data) ? data.map(item => normalizeCommit(this.platform, item, this.withFallback(ref))) : [];
