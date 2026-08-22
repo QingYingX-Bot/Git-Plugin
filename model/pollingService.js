@@ -2,6 +2,7 @@ import { createProvider } from './providers/index.js';
 import { notifySubscribers } from './notifier.js';
 import { RepoStore } from './repoStore.js';
 import { maskAutoLink } from './formatters/link.js';
+import { makeRepoEntityKey } from './platform.js';
 
 let timer = null;
 let running = false;
@@ -62,7 +63,11 @@ const checkSubscription = async (config, store, item) => {
 
   store.setLastCheck(item.key);
   for (const update of updates.reverse()) {
-    await notifySubscribers(item.subscribers, formatUpdate(item.key, update));
+    const data = update.data;
+    const eventKey = makeRepoEntityKey(item.ref, update.type, data.number, data.updatedAt || data.createdAt);
+    const targets = store.claimDeliveryTargets(eventKey, item.subscribers);
+    if (!targets.length) continue;
+    await notifySubscribers(targets, formatUpdate(item.key, update));
   }
 };
 

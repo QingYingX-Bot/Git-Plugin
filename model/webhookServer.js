@@ -1,7 +1,16 @@
 import crypto from 'node:crypto';
 import express from 'express';
 import { notifySubscribers } from './notifier.js';
-import { getPlatformLabel, makeRepoKey, normalizeRepoSlug, splitFullName } from './platform.js';
+import {
+  getPlatformLabel,
+  makeRepoEntityKey,
+  makeRepoKey,
+  makeRepoPushKey,
+  normalizeInstanceUrl,
+  normalizeRepoSlug,
+  splitFullName,
+  urlMatchesBase
+} from './platform.js';
 import { RepoStore } from './repoStore.js';
 import { buildWebhookPushPayload } from './webhookPush.js';
 import { maskAutoLink } from './formatters/link.js';
@@ -53,10 +62,13 @@ const dispatchWebhook = async (req, config) => {
   const ref = getWebhookRef(platform, req.body, config);
   if (!ref) return;
   const key = makeRepoKey(ref);
-  const item = new RepoStore().findSubscription(key);
+  const store = new RepoStore();
+  const item = store.findSubscription(key);
   if (!item) return;
-  const { message, options } = await formatWebhookMessage(platform, ref, req, config, item.subscribers);
-  await notifySubscribers(item.subscribers, message, options);
+  const targets = store.claimDeliveryTargets(getWebhookDeliveryKey(platform, ref, req), item.subscribers);
+  if (!targets.length) return;
+  const { message, options } = await formatWebhookMessage(platform, ref, req, config, targets);
+  await notifySubscribers(targets, message, options);
 };
 
 const detectPlatform = req => {
@@ -137,6 +149,57 @@ const getWebhookRef = (platform, payload, config) => {
   const { owner, repo: repoName } = splitFullName(fullName);
   const instance = platform === 'gitea' ? resolveGiteaInstance(repo, config) : '';
   return { platform, instance, owner, repo: repoName, fullName, displayName };
+};
+
+const getWebhookDeliveryKey = (platform, ref, req) => {
+  const eventType = getWebhookEventType(req);
+  if (eventType === 'push') {
+    const after = getPushAfter(req.body);
+    const pushKey = makeRepoPushKey(ref, after);
+    if (pushKey) return pushKey;
+  }
+
+  const identity = getWebhookIdentity(req);
+  const entityKey = makeRepoEntityKey(
+    ref,
+    eventType,
+    identity.number,
+    identity.version
+  );
+  if (entityKey) return entityKey;
+  const digest = crypto.createHash('sha256')
+    .update(JSON.stringify({
+      platform,
+      repo: makeRepoKey(ref).toLowerCase(),
+      eventType,
+      event: getWebhookEvent(req),
+      identity: identity.fallback
+    }))
+    .digest('hex');
+  return `webhook:${digest}`;
+};
+
+const getWebhookIdentity = req => {
+  const object = req.body?.issue || req.body?.pull_request || req.body?.object_attributes || {};
+  return {
+    number: object.number || object.iid || object.id || '',
+    version: object.updated_at || object.updatedAt || object.created_at || object.createdAt
+      || req.body?.updated_at || req.body?.created_at || '',
+    fallback: [
+      object.url,
+      object.html_url,
+      object.title,
+      object.state,
+      req.body?.after,
+      req.body?.checkout_sha
+    ].map(value => String(value ?? '').trim()).filter(Boolean)
+  };
+};
+
+const getPushAfter = payload => {
+  const value = payload?.after || payload?.checkout_sha || payload?.object_attributes?.after
+    || payload?.object_attributes?.checkout_sha || '';
+  return /^0{7,40}$/.test(String(value || '').trim()) ? '' : value;
 };
 
 const formatWebhookMessage = async (platform, ref, req, config, subscribers = []) => {
@@ -238,9 +301,38 @@ const getOrigin = value => {
 };
 
 const resolveGiteaInstance = (repo, config) => {
-  const origin = getOrigin(repo?.html_url || repo?.website || repo?.clone_url || repo?.ssh_url);
-  if (origin) return origin;
   const instances = config.providers?.gitea?.instances || {};
-  const baseUrls = Object.values(instances).map(item => String(item?.baseUrl || '').replace(/\/+$/g, '')).filter(Boolean);
+  const candidates = [
+    repo?.html_url,
+    repo?.web_url,
+    repo?.git_http_url,
+    repo?.http_url,
+    repo?.clone_url,
+    repo?.website,
+    repo?.homepage,
+    repo?.ssh_url
+  ].map(value => String(value || '').trim()).filter(Boolean);
+  const matching = Object.values(instances)
+    .filter(item => item?.baseUrl && candidates.some(value => urlMatchesBase(value, item.baseUrl)))
+    .sort((left, right) => {
+      const leftPath = getUrlPathLength(left.baseUrl);
+      const rightPath = getUrlPathLength(right.baseUrl);
+      return rightPath - leftPath;
+    });
+  if (matching[0]?.baseUrl) return normalizeInstanceUrl(matching[0].baseUrl);
+
+  const origin = candidates.map(getOrigin).find(Boolean);
+  const baseUrls = Object.values(instances).map(item => normalizeInstanceUrl(item?.baseUrl)).filter(Boolean);
+  const sameOrigin = baseUrls.filter(baseUrl => getOrigin(baseUrl) === origin);
+  if (sameOrigin.length === 1) return sameOrigin[0];
+  if (origin && !baseUrls.length) return normalizeInstanceUrl(origin);
   return baseUrls.length === 1 ? baseUrls[0] : '';
+};
+
+const getUrlPathLength = value => {
+  try {
+    return new URL(value).pathname.length;
+  } catch {
+    return 0;
+  }
 };

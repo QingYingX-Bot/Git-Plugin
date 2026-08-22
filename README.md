@@ -67,6 +67,17 @@ plugins/Git-Plugin/config/config/git.yaml
 | GitCode | Access Token，仓库 / Issue / PR 读权限 |
 | Gitea | Access Token，repository / issue 读权限 |
 
+Gitea 支持配置多个实例，`baseUrl` 填实例 Web 地址；反向代理部署在子路径时保留该路径，例如：
+
+```yaml
+providers:
+  gitea:
+    instances:
+      main:
+        baseUrl: "https://gitea.example.com/gitea"
+        token: "your-token"
+```
+
 ### 网络代理
 
 访问 GitHub 慢或经常出现 TLS 建连失败时，可以在运行配置中填写代理：
@@ -267,7 +278,7 @@ checkIntervalMinutes: 30
 | `repoUpdate` | 插件定时拉最新 commit | 分支 commit 更新 | `repoUpdate.list.groups/friends` |
 | `webhook` | 平台实时回调插件接口 | Issues / PR / Push | `subscriptions.json` 中的订阅会话 |
 
-`repoUpdate` 适合没有公网 webhook 地址、只想给固定群或好友推 commit 更新的场景。`webhook` 适合实时推送，平台仓库页面需要添加 webhook。多个平台、多个仓库可以共用同一个插件 webhook URL；每个仓库需要在对应平台单独添加一次。同一仓库同时启用 `repoUpdate` 和 webhook 的 `push` 事件时，commit 更新会重复提醒。
+`repoUpdate` 适合没有公网 webhook 地址、只想给固定群或好友推 commit 更新的场景。`webhook` 适合实时推送，平台仓库页面需要添加 webhook。多个平台、多个仓库可以共用同一个插件 webhook URL；每个仓库需要在对应平台单独添加一次。相同仓库、提交 SHA 和会话目标在 `repoUpdate` 与 Webhook Push 之间会自动去重。
 
 commit 轮询配置示例：
 
@@ -289,6 +300,9 @@ repoUpdate:
         - platform: github
           repo: qingyingx-bot/git-plugin
           branch: dev
+        - platform: gitea
+          instance: https://gitea.example.com/gitea
+          repo: owner/repo
       note: "commit 更新轮询"
 ```
 

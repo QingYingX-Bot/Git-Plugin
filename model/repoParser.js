@@ -1,4 +1,10 @@
-import { normalizePlatform, normalizeRepoSlug, splitFullName } from './platform.js';
+import {
+  normalizeInstanceUrl,
+  normalizePlatform,
+  normalizeRepoSlug,
+  splitFullName,
+  urlMatchesBase
+} from './platform.js';
 
 const PLATFORM_HOSTS = {
   github: ['github.com'],
@@ -29,11 +35,11 @@ export const parseRepoUrl = (value, config = {}) => {
 
   const host = url.hostname.toLowerCase();
   const platform = Object.entries(PLATFORM_HOSTS).find(([, hosts]) => hosts.includes(host))?.[0];
-  const giteaInstance = findGiteaInstance(url.origin, config);
+  const giteaInstance = findGiteaInstance(url, config);
   const currentPlatform = platform || (giteaInstance ? 'gitea' : '');
   if (!currentPlatform) return null;
 
-  const parts = url.pathname.split('/').filter(Boolean);
+  const parts = getRepoPathParts(url, giteaInstance);
   if (parts.length < 2) return null;
   return buildRef(currentPlatform, parts.slice(0, 2).join('/'), {
     config,
@@ -89,7 +95,8 @@ const parseNumberUrl = (value, options = {}) => {
   const parts = url.pathname.split('/').filter(Boolean);
   const markerIndex = parts.findIndex(part => ['issues', 'pull', 'pulls'].includes(part));
   if (parts.length < 4 || markerIndex < 2 || !/^[\w.-]+$/.test(parts[markerIndex + 1] || '')) return null;
-  const repoUrl = `${url.origin}/${parts[0]}/${parts[1]}`;
+  const repoUrl = new URL(url.origin);
+  repoUrl.pathname = `/${parts.slice(0, markerIndex).join('/')}`;
   const ref = parseRepoUrl(repoUrl, options.config || {});
   return ref ? { ref, number: parts[markerIndex + 1] } : null;
 };
@@ -101,23 +108,47 @@ const buildRef = (platform, slug, options = {}) => {
   const { owner, repo } = splitFullName(fullName);
   return {
     platform: normalizedPlatform,
-    instance: options.instance || '',
+    instance: normalizedPlatform === 'gitea' ? normalizeInstanceUrl(options.instance) : '',
     owner,
     repo,
     fullName
   };
 };
 
-const findGiteaInstance = (origin, config) => {
+const getRepoPathParts = (url, instance) => {
+  const parts = url.pathname.split('/').filter(Boolean);
+  if (!instance?.baseUrl) return parts;
+
+  try {
+    const baseParts = new URL(instance.baseUrl).pathname.split('/').filter(Boolean);
+    return parts.slice(0, baseParts.length).join('/') === baseParts.join('/')
+      ? parts.slice(baseParts.length)
+      : [];
+  } catch {
+    return parts;
+  }
+};
+
+const findGiteaInstance = (url, config) => {
   const instances = config.providers?.gitea?.instances || {};
-  return Object.values(instances).find(item => {
-    const baseUrl = String(item?.baseUrl || '').replace(/\/+$/g, '');
-    return baseUrl && baseUrl === origin.replace(/\/+$/g, '');
-  });
+  return Object.values(instances)
+    .filter(item => item?.baseUrl && urlMatchesBase(url, item.baseUrl))
+    .sort((left, right) => {
+      return getUrlPathLength(right.baseUrl) - getUrlPathLength(left.baseUrl);
+    })[0];
 };
 
 const getDefaultGiteaInstance = config => {
   const instances = config.providers?.gitea?.instances || {};
-  const first = Object.values(instances).find(item => item?.baseUrl);
-  return first?.baseUrl?.replace(/\/+$/g, '') || '';
+  return Object.values(instances)
+    .map(item => normalizeInstanceUrl(item?.baseUrl))
+    .find(Boolean) || '';
+};
+
+const getUrlPathLength = value => {
+  try {
+    return new URL(value).pathname.length;
+  } catch {
+    return 0;
+  }
 };

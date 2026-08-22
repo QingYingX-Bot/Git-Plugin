@@ -12,9 +12,12 @@ const files = {
   repoTokens: path.join(dataDir, 'repoTokens.json'),
   lastSha: path.join(dataDir, 'lastSha.json'),
   shaHistory: path.join(dataDir, 'shaHistory.json'),
-  pendingRewrite: path.join(dataDir, 'pendingRewrite.json')
+  pendingRewrite: path.join(dataDir, 'pendingRewrite.json'),
+  deliveryHistory: path.join(dataDir, 'deliveryHistory.json')
 };
 const SHA_HISTORY_LIMIT = 50;
+const DELIVERY_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const DELIVERY_HISTORY_LIMIT = 2000;
 
 const readJson = file => {
   if (!fs.existsSync(file)) return {};
@@ -42,6 +45,7 @@ export class RepoStore {
     this.lastShaData = readJson(files.lastSha);
     this.shaHistory = readJson(files.shaHistory);
     this.pendingRewrite = readJson(files.pendingRewrite);
+    this.deliveryHistory = readJson(files.deliveryHistory);
   }
 
   addSubscription(origin, ref, repoInfo = {}) {
@@ -182,4 +186,87 @@ export class RepoStore {
     writeJson(files.pendingRewrite, this.pendingRewrite);
     return true;
   }
+
+  claimDeliveryTargets(eventKey, targets = [], now = Date.now()) {
+    const uniqueTargets = dedupeTargets(targets);
+    const key = String(eventKey || '').trim();
+    if (!key || !uniqueTargets.length) return uniqueTargets;
+
+    let changed = pruneDeliveryHistory(this.deliveryHistory, now);
+    const event = this.deliveryHistory[key] || {};
+    const allowed = [];
+
+    for (const target of uniqueTargets) {
+      const targetKey = targetDedupKey(target);
+      const claimedAt = Number(event[targetKey] || 0);
+      if (claimedAt && now - claimedAt <= DELIVERY_TTL_MS) continue;
+      event[targetKey] = now;
+      allowed.push(target);
+      changed = true;
+    }
+
+    if (allowed.length) this.deliveryHistory[key] = event;
+    if (pruneHistorySize(this.deliveryHistory)) changed = true;
+    if (changed) writeJson(files.deliveryHistory, this.deliveryHistory);
+    return allowed;
+  }
 }
+
+const dedupeTargets = targets => {
+  const rows = new Map();
+  for (const target of targets || []) {
+    const value = String(target || '').trim();
+    const key = targetDedupKey(value);
+    if (!key) continue;
+    const current = rows.get(key);
+    if (!current || preferTarget(value, current)) rows.set(key, value);
+  }
+  return [...rows.values()];
+};
+
+const targetDedupKey = target => {
+  const parts = String(target || '').split(':');
+  if (parts.length >= 3) return `${parts[1]}:${parts.slice(2).join(':')}`;
+  if (parts.length === 2) return `${parts[0]}:${parts[1]}`;
+  return String(target || '');
+};
+
+const preferTarget = (next, current) => {
+  const nextParts = String(next || '').split(':');
+  const currentParts = String(current || '').split(':');
+  return nextParts.length >= 3 && currentParts.length < 3;
+};
+
+const pruneDeliveryHistory = (history, now) => {
+  let changed = false;
+  for (const [eventKey, targets] of Object.entries(history)) {
+    if (!targets || typeof targets !== 'object' || Array.isArray(targets)) {
+      delete history[eventKey];
+      changed = true;
+      continue;
+    }
+    for (const [targetKey, claimedAt] of Object.entries(targets)) {
+      if (!Number.isFinite(Number(claimedAt)) || now - Number(claimedAt) > DELIVERY_TTL_MS) {
+        delete targets[targetKey];
+        changed = true;
+      }
+    }
+    if (!Object.keys(targets).length) {
+      delete history[eventKey];
+      changed = true;
+    }
+  }
+  return changed;
+};
+
+const pruneHistorySize = history => {
+  const entries = Object.entries(history);
+  if (entries.length <= DELIVERY_HISTORY_LIMIT) return false;
+  entries
+    .sort(([, left], [, right]) => latestClaim(left) - latestClaim(right))
+    .slice(0, entries.length - DELIVERY_HISTORY_LIMIT)
+    .forEach(([eventKey]) => delete history[eventKey]);
+  return true;
+};
+
+const latestClaim = targets => Math.max(...Object.values(targets).map(value => Number(value) || 0), 0);

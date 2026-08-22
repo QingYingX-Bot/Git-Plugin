@@ -1,12 +1,13 @@
 import { requestJson } from '../request.js';
 import { normalizeCommit, normalizeIssue, normalizePull, normalizeRateLimit, normalizeReadme, normalizeRepo } from '../normalize.js';
+import { normalizeInstanceUrl } from '../platform.js';
 
 const README_CANDIDATES = ['README.md', 'README.MD', 'readme.md'];
 
 export class GiteaProvider {
   constructor(config = {}, ref = {}) {
     this.platform = 'gitea';
-    this.instance = String(ref.instance || config.baseUrl || '').replace(/\/+$/g, '');
+    this.instance = normalizeInstanceUrl(ref.instance) || normalizeInstanceUrl(config.baseUrl);
     this.apiBase = this.instance.endsWith('/api/v1') ? this.instance : `${this.instance}/api/v1`;
     this.token = String(config.token || '').trim();
     this.timeoutMs = Number(config.timeoutMs || 15000);
@@ -25,6 +26,7 @@ export class GiteaProvider {
   }
 
   async listCommits(ref, options = {}) {
+    this.assertInstance();
     const query = {
       per_page: options.perPage || 10,
       page: options.page || 1,

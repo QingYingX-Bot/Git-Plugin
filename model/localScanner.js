@@ -2,15 +2,16 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
+import { normalizeInstanceUrl } from './platform.js'
 
 const execFileAsync = promisify(execFile)
 
 const IGNORE_DIRS = new Set(['data', 'node_modules', 'temp', 'logs', 'cache', 'dist', '.git', '.github', '.vscode'])
 
 const URL_PATTERNS = [
-  { pattern: /github\.com[:/](?<repo>[^/]+\/[^/.?#]+)/i, platform: 'github' },
-  { pattern: /gitee\.com[:/](?<repo>[^/]+\/[^/.?#]+)/i, platform: 'gitee' },
-  { pattern: /gitcode\.com[:/](?<repo>[^/]+\/[^/.?#]+)/i, platform: 'gitcode' },
+  { pattern: /github\.com[:/](?<repo>[^/]+\/[^/?#]+)/i, platform: 'github' },
+  { pattern: /gitee\.com[:/](?<repo>[^/]+\/[^/?#]+)/i, platform: 'gitee' },
+  { pattern: /gitcode\.com[:/](?<repo>[^/]+\/[^/?#]+)/i, platform: 'gitcode' },
 ]
 
 async function isGitRepo(dir) {
@@ -91,17 +92,51 @@ function classifyRemote(remoteUrl) {
     }
   }
 
-  // Try generic SSH/HTTPS pattern for unknown hosts (treat as Gitea)
-  const sshMatch = remoteUrl.match(/[:/](?<host>[^/:]+[:/])(?<repo>[^/]+\/[^/.?#]+)/)
-  if (sshMatch?.groups) {
-    const host = sshMatch.groups.host.replace(/[:/]$/, '')
-    const repo = sshMatch.groups.repo.replace(/\.git$/, '')
-    if (host && repo) {
-      return { platform: 'gitea', fullName: repo, instance: `https://${host}` }
-    }
-  }
+  const httpRemote = parseHttpRemote(remoteUrl)
+  if (httpRemote) return httpRemote
+
+  const sshRemote = parseSshRemote(remoteUrl)
+  if (sshRemote) return sshRemote
 
   return null
+}
+
+function parseHttpRemote(remoteUrl) {
+  let url
+  try {
+    url = new URL(remoteUrl)
+  } catch {
+    return null
+  }
+  if (!['http:', 'https:'].includes(url.protocol)) return null
+  const parts = url.pathname.split('/').filter(Boolean)
+  if (parts.length < 2) return null
+  const fullName = parts.slice(-2).join('/').replace(/\.git$/i, '')
+  const instancePath = parts.slice(0, -2).join('/')
+  const instance = normalizeInstanceUrl(`${url.origin}${instancePath ? `/${instancePath}` : ''}`)
+  return { platform: 'gitea', fullName, instance }
+}
+
+function parseSshRemote(remoteUrl) {
+  let host = ''
+  let remotePath = ''
+  try {
+    const url = new URL(remoteUrl)
+    if (url.protocol !== 'ssh:') return null
+    host = url.hostname
+    remotePath = url.pathname
+  } catch {
+    const match = String(remoteUrl || '').match(/^(?:[^@]+@)?(?<host>[^:]+):(?<path>.+)$/)
+    if (!match?.groups) return null
+    host = match.groups.host
+    remotePath = match.groups.path
+  }
+  const parts = String(remotePath || '').split('/').filter(Boolean)
+  if (!host || parts.length < 2) return null
+  const fullName = parts.slice(-2).join('/').replace(/\.git$/i, '')
+  const instancePath = parts.slice(0, -2).join('/')
+  const instance = normalizeInstanceUrl(`https://${host}${instancePath ? `/${instancePath}` : ''}`)
+  return { platform: 'gitea', fullName, instance }
 }
 
 const scanCache = new Map()

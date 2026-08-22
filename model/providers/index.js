@@ -2,14 +2,19 @@ import { GitHubProvider } from './githubProvider.js';
 import { GiteeProvider } from './giteeProvider.js';
 import { GitCodeProvider } from './gitcodeProvider.js';
 import { GiteaProvider } from './giteaProvider.js';
+import { normalizeInstanceUrl } from '../platform.js';
 
 const getGiteaConfig = (config, ref) => {
   const instances = config.providers?.gitea?.instances || {};
-  const byUrl = Object.values(instances).find(item => {
-    const baseUrl = String(item?.baseUrl || '').replace(/\/+$/g, '');
-    return baseUrl && baseUrl === String(ref?.instance || '').replace(/\/+$/g, '');
+  const instance = normalizeInstanceUrl(ref?.instance);
+  const configuredInstances = Object.values(instances)
+    .filter(item => normalizeInstanceUrl(item?.baseUrl));
+  const byUrl = configuredInstances.find(item => {
+    const baseUrl = normalizeInstanceUrl(item?.baseUrl);
+    return baseUrl && baseUrl === instance;
   });
-  return { ...(byUrl || {}), timeoutMs: config.requestTimeoutMs };
+  const fallback = !instance && configuredInstances.length === 1 ? configuredInstances[0] : null;
+  return { ...(byUrl || fallback || {}), timeoutMs: config.requestTimeoutMs };
 };
 
 export const createProvider = (platform, config = {}, ref = {}, repoToken = '') => {

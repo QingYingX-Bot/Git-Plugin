@@ -1,6 +1,6 @@
 import { createProvider } from './providers/index.js'
 import { RepoStore } from './repoStore.js'
-import { makeRepoBranchKey, makeRepoKey } from './platform.js'
+import { makeRepoBranchKey, makeRepoKey, makeRepoPushKey, normalizeInstanceUrl } from './platform.js'
 import { getStartupScannedLocalRepos } from './localScanner.js'
 import { notifySubscribers } from './notifier.js'
 import { getGitConfig } from '../components/config.js'
@@ -33,7 +33,7 @@ export async function runRepoUpdateCheck(config) {
     for (const entry of list) {
       // Manual repos (with per-repo token)
       for (const repo of (entry.repos || [])) {
-        const ref = buildRef(repo)
+        const ref = buildRef(repo, config)
         if (!ref) continue
         const repoKey = makeRepoKey(ref)
         const key = makeRepoBranchKey(ref)
@@ -46,14 +46,13 @@ export async function runRepoUpdateCheck(config) {
         const scanPath = String(config.repoUpdate?.scanPath || '').trim() || undefined
         const scanned = await getStartupScannedLocalRepos(scanPath)
         for (const repo of scanned) {
-          const ref = {
+          const ref = buildRef({
             platform: repo.platform,
-            fullName: repo.fullName,
-            owner: repo.fullName.split('/')[0],
-            repo: repo.fullName.split('/')[1]
-          }
-          if (repo.instance) ref.instance = repo.instance
-          if (repo.branch) ref.branch = repo.branch
+            repo: repo.fullName,
+            instance: repo.instance,
+            branch: repo.branch
+          }, config)
+          if (!ref) continue
           const repoKey = makeRepoKey(ref)
           const key = makeRepoBranchKey(ref)
           if (!allRepos.has(key)) allRepos.set(key, { ref, token: '', repoKey })
@@ -147,14 +146,22 @@ export async function runRepoUpdateCheck(config) {
     }
 
     if (!updates.size) return
-    const pushRows = collectRepoUpdateTargets(list, updates, buildRef)
+    const pushRows = collectRepoUpdateTargets(list, updates, repo => buildRef(repo, config))
     if (!pushRows.length) return
+    const dedupedPushRows = pushRows
+      .map(row => {
+        const eventKey = makeRepoPushKey(row.update.ref, row.update.fullSha || row.update.sha)
+        const targets = eventKey ? store.claimDeliveryTargets(eventKey, row.targets) : row.targets
+        return { ...row, targets }
+      })
+      .filter(row => row.targets.length)
+    if (!dedupedPushRows.length) return
 
-    const allTargets = pushRows.flatMap(row => row.targets)
+    const allTargets = dedupedPushRows.flatMap(row => row.targets)
     if (targetsIncludeQQBot(allTargets)) await attachLocalPluginNames(updates, String(config.repoUpdate?.scanPath || '').trim() || undefined)
 
     // Render once per update, then send the same message to all deduped targets.
-    for (const { key, update, targets } of pushRows) {
+    for (const { key, update, targets } of dedupedPushRows) {
       const pushOptions = { qqBotButtons: buildRepoUpdateButtons(update, config) }
       const img = await renderRepoUpdateCard(update).catch(() => false)
       const message = img || formatSingleUpdate(update)
@@ -170,12 +177,18 @@ export async function runRepoUpdateCheck(config) {
   }
 }
 
-function buildRef(repo) {
+function buildRef(repo, config = {}) {
   const platform = String(repo?.platform || '').trim()
   const fullName = String(repo?.repo || '').trim()
   if (!platform || !fullName || !/^[^/]+\/[^/]+$/.test(fullName)) return null
   const [owner, repoName] = fullName.split('/')
   const ref = { platform, fullName, owner, repo: repoName }
+  if (platform.toLowerCase() === 'gitea') {
+    const configured = Object.values(config.providers?.gitea?.instances || {})
+      .map(item => normalizeInstanceUrl(item?.baseUrl))
+      .find(Boolean)
+    ref.instance = normalizeInstanceUrl(repo?.instance) || configured || ''
+  }
   const branch = String(repo?.branch || '').trim()
   if (branch) ref.branch = branch
   return ref
