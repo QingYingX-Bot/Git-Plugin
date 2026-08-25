@@ -10,23 +10,32 @@ const TEMP_ROOT = path.join(process.cwd(), 'temp', 'Git-Plugin');
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const CURL_EXEC_TIMEOUT_MS = 15000;
 
-export const localizeImageUrl = async (url, scope = 'images') => {
+export const localizeImageUrl = async (url, scope = 'images', requestOptions = {}) => {
   const text = String(url || '').trim();
   if (!/^https?:\/\//i.test(text)) return '';
 
   const options = getRenderOptions();
   const proxy = options.proxy;
+  const headers = getScopedHeaders(text, requestOptions);
   const start = Date.now();
   if (options.downloadLog) logDownloadStart(text, scope, proxy);
+  const fetchFile = Object.keys(headers).length
+    ? await downloadWithFetch(text, scope, headers)
+    : '';
+  if (fetchFile) {
+    if (options.downloadLog) await logDownloadSuccess(fetchFile, 'fetch', text, start);
+    return fetchFile;
+  }
+
   const curlFile = await downloadWithCurl(text, scope, proxy);
   if (curlFile) {
     if (options.downloadLog) await logDownloadSuccess(curlFile, 'curl', text, start);
     return curlFile;
   }
 
-  const fetchFile = await downloadWithFetch(text, scope);
-  if (fetchFile && options.downloadLog) await logDownloadSuccess(fetchFile, 'fetch', text, start);
-  return fetchFile;
+  const fallbackFile = await downloadWithFetch(text, scope);
+  if (fallbackFile && options.downloadLog) await logDownloadSuccess(fallbackFile, 'fetch', text, start);
+  return fallbackFile;
 };
 
 export const toFileUrl = file => pathToFileURL(file).href;
@@ -40,14 +49,14 @@ export const cleanupTempFiles = async files => {
   await Promise.all(files.map(file => fs.promises.unlink(file).catch(() => {})));
 };
 
-const downloadWithFetch = async (url, scope) => {
+const downloadWithFetch = async (url, scope, headers = {}) => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 12000);
   try {
     const dir = path.join(TEMP_ROOT, scope);
     fs.mkdirSync(dir, { recursive: true });
     const response = await fetch(url, {
-      headers: { 'User-Agent': 'Yunzai-Git-Plugin' },
+      headers: { 'User-Agent': 'Yunzai-Git-Plugin', ...headers },
       signal: controller.signal
     });
     if (!response.ok) return '';
@@ -69,6 +78,18 @@ const downloadWithFetch = async (url, scope) => {
     return '';
   } finally {
     clearTimeout(timer);
+  }
+};
+
+const getScopedHeaders = (url, requestOptions = {}) => {
+  const headers = requestOptions?.headers;
+  const baseUrl = String(requestOptions?.baseUrl || '').trim();
+  if (!headers || typeof headers !== 'object' || !baseUrl) return {};
+  try {
+    if (new URL(url).origin !== new URL(baseUrl).origin) return {};
+    return { ...headers };
+  } catch {
+    return {};
   }
 };
 

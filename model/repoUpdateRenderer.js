@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url'
 import puppeteer from '../../../lib/puppeteer/puppeteer.js'
 import { getGitConfig, getPluginRoot } from '../components/config.js'
 import { shortText } from './formatters/common.js'
-import { getPlatformLabel } from './platform.js'
+import { getPlatformLabel, resolveInstanceAssetUrl } from './platform.js'
 import MarkdownIt from 'markdown-it'
 import { cleanupTempFiles, localizeImageUrl, toDataUrl } from './renderAssets.js'
 
@@ -38,17 +38,18 @@ export const renderRepoUpdateCard = async update => {
   const cleanupFiles = []
   try {
     const theme = normalizeTheme(update.theme || getGitConfig()?.repoUpdate?.theme)
-    const authorAvatarUrl = update.authorAvatar || ''
-    const committerAvatarUrl = update.committerAvatar || ''
+    const avatarRequestOptions = update.avatarRequestOptions || {}
+    const authorAvatarUrl = resolveInstanceAssetUrl(update.authorAvatar, avatarRequestOptions.baseUrl)
+    const committerAvatarUrl = resolveInstanceAssetUrl(update.committerAvatar, avatarRequestOptions.baseUrl)
     const fallbackAvatarUrl = !authorAvatarUrl && !committerAvatarUrl
       ? getAuthorAvatarUrl(platform, update.author)
       : ''
     const [authorImage, committerImage, fallbackImage] = await Promise.all([
-      fetchAvatarAsDataUrl(authorAvatarUrl, cleanupFiles),
+      fetchAvatarAsDataUrl(authorAvatarUrl, cleanupFiles, avatarRequestOptions),
       committerAvatarUrl && committerAvatarUrl !== authorAvatarUrl
-        ? fetchAvatarAsDataUrl(committerAvatarUrl, cleanupFiles)
+        ? fetchAvatarAsDataUrl(committerAvatarUrl, cleanupFiles, avatarRequestOptions)
         : Promise.resolve(''),
-      fetchAvatarAsDataUrl(fallbackAvatarUrl, cleanupFiles)
+      fetchAvatarAsDataUrl(fallbackAvatarUrl, cleanupFiles, avatarRequestOptions)
     ])
     const authorAvatar = authorImage || committerImage || fallbackImage
     const committerAvatar = committerImage && committerImage !== authorAvatar ? committerImage : ''
@@ -136,9 +137,9 @@ const getAuthorAvatarUrl = (platform, author) => {
   }
 }
 
-const fetchAvatarAsDataUrl = async (url, cleanupFiles) => {
+const fetchAvatarAsDataUrl = async (url, cleanupFiles, requestOptions = {}) => {
   if (!url) return ''
-  const file = await localizeImageUrl(url, 'repo-update-avatars')
+  const file = await localizeImageUrl(url, 'repo-update-avatars', requestOptions)
   if (!file) return ''
   cleanupFiles.push(file)
   return toDataUrl(file)

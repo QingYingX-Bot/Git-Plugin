@@ -41,6 +41,25 @@ export const urlMatchesBase = (value, base) => {
   }
 };
 
+export const resolveInstanceAssetUrl = (value, instance) => {
+  const text = String(value || '').trim();
+  const base = normalizeInstanceUrl(instance);
+  if (!text || !base) return text;
+  try {
+    const baseUrl = new URL(`${base}/`);
+    const target = new URL(text, baseUrl);
+    const basePath = baseUrl.pathname.replace(/\/+$/g, '');
+    if (basePath && target.origin === baseUrl.origin
+      && target.pathname !== basePath
+      && !target.pathname.startsWith(`${basePath}/`)) {
+      target.pathname = `${basePath}/${target.pathname.replace(/^\/+/g, '')}`;
+    }
+    return target.toString();
+  } catch {
+    return text;
+  }
+};
+
 export const normalizeRepoSlug = (slug, useLowercase = true) => {
   const value = String(slug || '').trim().replace(/^\/+|\/+$/g, '').replace(/\.git$/i, '');
   if (!/^[\w.-]+\/[\w.-]+$/.test(value)) return '';

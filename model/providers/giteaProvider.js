@@ -1,6 +1,6 @@
 import { requestJson } from '../request.js';
 import { normalizeCommit, normalizeIssue, normalizePull, normalizeRateLimit, normalizeReadme, normalizeRepo } from '../normalize.js';
-import { normalizeInstanceUrl } from '../platform.js';
+import { normalizeInstanceUrl, resolveInstanceAssetUrl } from '../platform.js';
 
 const README_CANDIDATES = ['README.md', 'README.MD', 'readme.md'];
 
@@ -11,6 +11,7 @@ export class GiteaProvider {
     this.apiBase = this.instance.endsWith('/api/v1') ? this.instance : `${this.instance}/api/v1`;
     this.token = String(config.token || '').trim();
     this.timeoutMs = Number(config.timeoutMs || 15000);
+    this.userAvatarCache = new Map();
   }
 
   headers() {
@@ -35,7 +36,10 @@ export class GiteaProvider {
       files: true
     };
     const data = await this.get(`/repos/${this.repoPath(ref)}/commits`, query);
-    return Array.isArray(data) ? data.map(item => normalizeCommit(this.platform, item, this.withFallback(ref))) : [];
+    if (!Array.isArray(data)) return [];
+    const commits = data.map(item => normalizeCommit(this.platform, item, this.withFallback(ref)));
+    await this.fillMissingCommitAvatars(commits);
+    return commits;
   }
 
   async listIssues(ref, options = {}) {
@@ -101,6 +105,60 @@ export class GiteaProvider {
 
   withFallback(ref) {
     return { ...ref, instance: this.instance, webUrl: `${this.instance}/${ref.fullName}` };
+  }
+
+  getAvatarRequestOptions() {
+    return {
+      baseUrl: this.instance,
+      headers: this.token ? { Authorization: `token ${this.token}` } : {}
+    };
+  }
+
+  async fillMissingCommitAvatars(commits) {
+    await Promise.all(commits.map(async commit => {
+      if (!commit.authorAvatar) {
+        commit.authorAvatar = await this.findUserAvatar(commit, 'author');
+      }
+      if (!commit.committerAvatar) {
+        commit.committerAvatar = await this.findUserAvatar(commit, 'committer');
+      }
+    }));
+  }
+
+  async findUserAvatar(commit, role) {
+    const raw = commit.raw || {};
+    const linked = raw[role] || {};
+    const gitUser = raw.commit?.[role] || {};
+    const queries = [
+      linked.login,
+      linked.username,
+      gitUser.username,
+      gitUser.email,
+      gitUser.name
+    ].map(value => String(value || '').trim()).filter(Boolean);
+
+    for (const query of queries) {
+      const cacheKey = query.toLowerCase();
+      if (!this.userAvatarCache.has(cacheKey)) {
+        this.userAvatarCache.set(cacheKey, this.searchUserAvatar(query).catch(() => ''));
+      }
+      const avatar = await this.userAvatarCache.get(cacheKey);
+      if (avatar) return avatar;
+    }
+    return '';
+  }
+
+  async searchUserAvatar(query) {
+    const result = await this.get('/users/search', { q: query, limit: 5 });
+    const users = Array.isArray(result?.data) ? result.data : [];
+    const key = String(query || '').trim().toLowerCase();
+    const user = users.find(item => [
+      item.login,
+      item.username,
+      item.full_name,
+      item.email
+    ].some(value => String(value || '').trim().toLowerCase() === key)) || (users.length === 1 ? users[0] : null);
+    return resolveInstanceAssetUrl(user?.avatar_url, this.instance);
   }
 
   assertInstance() {

@@ -122,7 +122,7 @@ export async function runRepoUpdateCheck(config) {
           getCommitReleaseInfo(provider, ref, sha).catch(() => null)
         ])
 
-        updates.set(key, {
+        const update = {
           ref,
           sha: shortSha(sha),
           fullSha: sha,
@@ -140,7 +140,15 @@ export async function runRepoUpdateCheck(config) {
           deletions: commitDetails.deletions || 0,
           releaseInfo,
           rewrite: rewrite ? { ...rewrite, updateSha: shortSha(sha) } : null
-        })
+        }
+        const avatarRequestOptions = provider.getAvatarRequestOptions?.()
+        if (avatarRequestOptions) {
+          Object.defineProperty(update, 'avatarRequestOptions', {
+            value: avatarRequestOptions,
+            enumerable: false
+          })
+        }
+        updates.set(key, update)
         if (pendingRewrite) store.clearPendingRewrite(key)
       } catch (err) {
         logger.warn(`[Git-Plugin] 检查 ${key} 更新失败: ${err.message}`)

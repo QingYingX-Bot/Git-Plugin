@@ -496,8 +496,8 @@
           <div class="title-meta">
             <div class="title-author">
               <span class="avatar-stack">
-                <img class="author-avatar" src="{{update.authorAvatar}}" alt="{{update.author}} 作者头像" onload="this.classList.add('loaded')" onerror="this.classList.add('error')">
-                {{if update.showCommitterAvatar}}<img class="author-avatar" src="{{update.committerAvatar}}" alt="提交者头像" onload="this.classList.add('loaded')" onerror="this.classList.add('error')">{{/if}}
+                <img class="author-avatar" src="{{update.authorAvatar}}" alt="{{update.author}} 作者头像" onload="this.classList.add('loaded')" onerror="this.removeAttribute('src');this.classList.add('error')">
+                {{if update.showCommitterAvatar}}<img class="author-avatar" src="{{update.committerAvatar}}" alt="提交者头像" onload="this.classList.add('loaded')" onerror="this.removeAttribute('src');this.classList.add('error')">{{/if}}
               </span>
               <span>{{update.author}}</span>
             </div>
