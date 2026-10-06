@@ -89,7 +89,8 @@ repoUpdate:
       repos: []
       # 备注。
       note: ""
-  # 扫描路径。留空使用 Yunzai 根目录（process.cwd()）。仅 autoScan 开启时生效。
+  # 扫描路径。留空使用 Yunzai 根目录下的 plugins（process.cwd()/plugins）。
+  # 会递归子目录（最多 4 层），插件内部嵌套的独立仓库同样会被检测到。仅 autoScan 开启时生效。
   scanPath: ""
 
 # QQBot 官机按钮配置。用于仓库更新和 Webhook Push 推送。

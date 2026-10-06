@@ -1,6 +1,6 @@
 import path from 'node:path'
 import { makeRepoKey } from './platform.js'
-import { getStartupScannedLocalRepos } from './localScanner.js'
+import { getScannedLocalRepos } from './localScanner.js'
 
 const BUTTON_STYLE_DEFAULT = 1
 
@@ -27,7 +27,7 @@ export function targetsIncludeQQBot(targets = []) {
 }
 
 export async function attachLocalPluginNames(items, rootDir) {
-  const localRepos = await getStartupScannedLocalRepos(rootDir).catch(err => {
+  const localRepos = await getScannedLocalRepos(rootDir).catch(err => {
     logger.warn(`[Git-Plugin] 扫描本地插件仓库失败: ${err.message}`)
     return []
   })
@@ -35,7 +35,9 @@ export async function attachLocalPluginNames(items, rootDir) {
 
   const localPluginMap = new Map()
   for (const repo of localRepos) {
-    const pluginName = path.basename(repo.dir || '')
+    // 用相对扫描根的路径，嵌套插件（如 WeGame-plugin/modules/rocom）才能被
+    // TRSS-Yunzai 的 `#更新<插件>` 定位到：它会去找 plugins/<插件>/.git
+    const pluginName = String(repo.name || '').trim() || path.basename(repo.dir || '')
     const key = repoLookupKey(repo)
     if (!pluginName || !key || repo.canUpdate === false) continue
     const plugin = {

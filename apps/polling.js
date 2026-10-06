@@ -3,7 +3,6 @@ import { getGitConfig } from '../components/config.js';
 import { startPollingService } from '../model/pollingService.js';
 import { startWebhookService } from '../model/webhookServer.js';
 import { runRepoUpdateCheck } from '../model/repoUpdateService.js';
-import { initLocalRepoScan } from '../model/localScanner.js';
 
 export class GitPollingApp extends plugin {
   constructor() {
@@ -14,10 +13,8 @@ export class GitPollingApp extends plugin {
       rule: []
     });
     const config = getGitConfig();
-    const scanPath = String(config.repoUpdate?.scanPath || '').trim() || undefined
-    initLocalRepoScan(scanPath).catch(err => {
-      logger.warn(`[Git-Plugin] 启动扫描本地插件仓库失败: ${err.message}`)
-    })
+    // 本地仓库扫描改为懒加载：首次真正需要（仓库更新检测 / QQBot 更新按钮）时才开扫，
+    // 不再占用框架启动时间。见 model/localScanner.js#getScannedLocalRepos。
     startPollingService(config);
     startWebhookService(config);
 

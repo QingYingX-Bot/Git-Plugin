@@ -1,7 +1,7 @@
 import { createProvider } from './providers/index.js'
 import { RepoStore } from './repoStore.js'
 import { makeRepoBranchKey, makeRepoKey, makeRepoPushKey, normalizeInstanceUrl } from './platform.js'
-import { getStartupScannedLocalRepos } from './localScanner.js'
+import { getScannedLocalRepos } from './localScanner.js'
 import { notifySubscribers } from './notifier.js'
 import { getGitConfig } from '../components/config.js'
 import { renderRepoUpdateCard } from './repoUpdateRenderer.js'
@@ -45,7 +45,7 @@ export async function runRepoUpdateCheck(config) {
       // Auto-scanned repos
       if (entry.autoScan) {
         const scanPath = String(config.repoUpdate?.scanPath || '').trim() || undefined
-        const scanned = await getStartupScannedLocalRepos(scanPath)
+        const scanned = await getScannedLocalRepos(scanPath)
         for (const repo of scanned) {
           const ref = buildRef({
             platform: repo.platform,
