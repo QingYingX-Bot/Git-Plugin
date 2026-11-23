@@ -44,7 +44,6 @@
       display: inline-flex;
       align-items: center;
       gap: 12px;
-      margin-bottom: 26px;
       color: {{repo.accent}};
       font-size: 24px;
       font-weight: 700;
@@ -71,22 +70,31 @@
      * 镜像胶囊：官方镜像仓库（GitHub 加速计划 / Gitee 极速下载）在平台名右侧
      * 挂一个深色药丸，说明它不是原生仓库。配色沿用平台主色，不另开色系。
      */
+    /**
+     * 平台行：平台标识 + 可选镜像胶囊。
+     * 与标题的间距放在这一层（原来挂在 .platform 的 margin-bottom 上，
+     * 包了父容器后那个 margin 会把平台名单独往下推，胶囊不动 → 错位）。
+     */
     .platform-row {
       display: flex;
       align-items: center;
       gap: 14px;
+      min-height: 32px;
+      margin-bottom: 26px;
     }
 
     .mirror-pill {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      padding: 7px 16px;
+      padding: 0 16px;
+      height: 32px;
       border-radius: 999px;
       background: {{repo.accent}};
       color: #fff;
       font-size: 19px;
       font-weight: 600;
+      line-height: 1;
       white-space: nowrap;
     }
 
