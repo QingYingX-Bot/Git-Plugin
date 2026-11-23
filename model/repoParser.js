@@ -41,7 +41,12 @@ export const parseRepoUrl = (value, config = {}) => {
 
   const parts = getRepoPathParts(url, giteaInstance);
   if (parts.length < 2) return null;
-  return buildRef(currentPlatform, parts.slice(0, 2).join('/'), {
+  /**
+   * 保留完整 namespace 层级：GitCode 的镜像仓库 `gh_mirrors/le/Leonida` 是三段，
+   * 旧实现硬截前两段会退化成不存在的 `gh_mirrors/le`，直接 404。
+   * 两段式 owner/repo 仍落在同一分支上，行为不变。
+   */
+  return buildRef(currentPlatform, parts.join('/'), {
     config,
     instance: giteaInstance?.baseUrl || ''
   });

@@ -60,9 +60,19 @@ export const resolveInstanceAssetUrl = (value, instance) => {
   }
 };
 
+/**
+ * 规范化 owner/repo 形式的 slug。
+ *
+ * 允许一级以上 namespace：GitCode 的「GitHub 加速计划」镜像仓库路径是
+ * `gh_mirrors/<上游首字母>/<仓库名>` 三段，GitLab 式实例也可能更深。
+ * 仍拒绝空段、`.` / `..` 段与非法字符，避免拼出越界或注入的 API 路径。
+ */
 export const normalizeRepoSlug = (slug, useLowercase = true) => {
   const value = String(slug || '').trim().replace(/^\/+|\/+$/g, '').replace(/\.git$/i, '');
-  if (!/^[\w.-]+\/[\w.-]+$/.test(value)) return '';
+  if (!value) return '';
+  const parts = value.split('/');
+  if (parts.length < 2) return '';
+  if (!parts.every(part => /^[\w.-]+$/.test(part) && part !== '.' && part !== '..')) return '';
   return useLowercase ? value.toLowerCase() : value;
 };
 
@@ -104,7 +114,16 @@ const normalizeEntityVersion = value => {
   return Number.isNaN(timestamp) ? text : String(timestamp);
 };
 
+/**
+ * 拆出 owner 与 repo。
+ *
+ * 最后一段是仓库名，其余全部归入 owner（保留 namespace 层级），
+ * 这样 `gh_mirrors/le/Leonida` → owner `gh_mirrors/le`、repo `Leonida`，
+ * 各 provider 的 repoPath 用 encodeURIComponent(owner) 拼出 `gh_mirrors%2Fle/Leonida`。
+ */
 export const splitFullName = fullName => {
-  const [owner, repo] = String(fullName || '').split('/');
-  return { owner: owner || '', repo: repo || '' };
+  const parts = String(fullName || '').split('/').filter(Boolean);
+  if (!parts.length) return { owner: '', repo: '' };
+  const repo = parts.pop();
+  return { owner: parts.join('/'), repo };
 };
