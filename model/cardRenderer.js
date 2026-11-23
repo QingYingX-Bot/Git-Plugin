@@ -7,7 +7,7 @@ import { getPlatformLabel } from './platform.js';
 const PLATFORM_STYLES = {
   github: { accent: '#24292f', accentSoft: 'rgba(36, 41, 47, 0.14)', icon: 'github.svg' },
   gitee: { accent: '#c71d23', accentSoft: 'rgba(199, 29, 35, 0.14)', icon: 'gitee.svg' },
-  gitcode: { accent: '#2f6fed', accentSoft: 'rgba(47, 111, 237, 0.14)', icon: 'gitcode.svg' },
+  gitcode: { accent: '#c71d23', accentSoft: 'rgba(199, 29, 35, 0.14)', icon: 'gitcode.svg' },
   gitea: { accent: '#609926', accentSoft: 'rgba(96, 153, 38, 0.14)', icon: 'gitea.svg' }
 };
 
@@ -53,6 +53,15 @@ const toCardData = repo => {
      */
     parentName: shorten(repo.parentName || '', 48),
     showFork: Boolean(repo.isFork && repo.parentName),
+    /**
+     * 官方镜像仓库（GitCode 加速计划 / Gitee 极速下载）：
+     * 走 M2 胶囊样式，标题只显示仓库名，上方标出镜像来源。
+     */
+    isMirror: Boolean(repo.isMirror),
+    mirrorLabel: repo.mirrorLabel || '',
+    mirrorOwner: repo.mirrorOwner || '',
+    mirrorTitle: shorten(repo.mirrorShortName || repo.fullName || '', 28),
+    showMirror: Boolean(repo.isMirror && repo.mirrorLabel),
     updatedAt: formatDate(repo.updatedAt),
     stars: formatNumber(repo.stars),
     forks: formatNumber(repo.forks),

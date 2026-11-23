@@ -34,6 +34,42 @@ const pickForkParent = (data = {}) => {
   return { name, url };
 };
 
+/**
+ * 识别平台官方维护的镜像 / 加速下载仓库。
+ *
+ * 这类仓库不是 fork（fork=false、parent=null），平台也不给上游地址，
+ * 但 full_name / human_name 有稳定特征：
+ *   - GitCode：`gh_mirrors/<首字母>/<仓库名>`，human_name 前缀「GitHub 加速计划」
+ *     另有同类命名空间 GitHub_Trending，human_name 前缀「GitHub推荐项目精选」
+ *   - Gitee：`mirrors/<仓库名>`（两段式），human_name 前缀「Gitee 极速下载」
+ *     owner 显示名是「极速 Gitee」
+ * 上游地址无法从路径反推（gh_mirrors/le/Leonida 的 le 是分类不是 owner），
+ * 所以只标注「是镜像」，不生成上游链接。
+ */
+const MIRROR_RULES = [
+  { platform: 'gitcode', prefix: 'GitHub 加速计划', label: 'GitHub 加速计划' },
+  { platform: 'gitcode', prefix: 'GitHub推荐项目精选', label: 'GitHub 推荐精选' },
+  { platform: 'gitee', prefix: 'Gitee 极速下载', label: 'Gitee 极速下载' },
+];
+
+const pickMirror = (platform, data = {}, fullName = '') => {
+  const humanName = text(data.human_name);
+  const rule = MIRROR_RULES.find(item => item.platform === platform && humanName.startsWith(item.prefix));
+  if (!rule) return null;
+  /**
+   * 命名空间：GitCode 三段式取前两段当归属（gh_mirrors/le），
+   * Gitee 两段式取第一段（mirrors）。展示成「镜像名 / 分类」的形式。
+   */
+  const parts = String(fullName).split('/').filter(Boolean);
+  const hasCategory = parts.length >= 3;
+  return {
+    label: rule.label,
+    owner: hasCategory ? `${parts[0]} / ${parts[1]}` : parts[0] || '',
+    category: hasCategory ? parts[1] : '',
+    shortName: parts[parts.length - 1] || '',
+  };
+};
+
 export const normalizeRepo = (platform, data = {}, fallback = {}) => {
   const owner = text(fallback.owner || data.owner?.login || data.owner?.name || data.namespace?.path);
   const repo = text(fallback.repo || data.name || data.path);
@@ -48,6 +84,7 @@ export const normalizeRepo = (platform, data = {}, fallback = {}) => {
     fallback.avatarUrl
   );
   const forkParent = pickForkParent(data);
+  const mirrorInfo = pickMirror(platform, data, fullName);
   return {
     platform,
     instance: fallback.instance || '',
@@ -69,6 +106,11 @@ export const normalizeRepo = (platform, data = {}, fallback = {}) => {
     isFork: Boolean(data.fork),
     parentName: forkParent.name,
     parentUrl: forkParent.url,
+    /** 官方镜像仓库：isMirror 为真时卡片走镜像样式 */
+    isMirror: Boolean(mirrorInfo),
+    mirrorLabel: mirrorInfo?.label || '',
+    mirrorOwner: mirrorInfo?.owner || '',
+    mirrorShortName: mirrorInfo?.shortName || '',
     raw: data
   };
 };
