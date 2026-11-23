@@ -67,6 +67,32 @@
       display: block;
     }
 
+    /* fork 上游行：紧跟描述，不与统计行抢位置 */
+    .fork-line {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      max-width: 780px;
+      margin: 18px 0 0;
+      color: #6e7781;
+      font-size: 24px;
+      line-height: 1.35;
+    }
+
+    .fork-line .fork-icon {
+      width: 22px;
+      height: 22px;
+      flex: 0 0 auto;
+    }
+
+    .fork-line .fork-parent {
+      color: #24292f;
+      font-weight: 700;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
     .title {
       margin: 0;
       max-width: 780px;
@@ -84,6 +110,11 @@
       font-size: 30px;
       line-height: 1.55;
       letter-spacing: 0;
+      /* 限两行：描述过长时不再把 fork 行和统计行挤走 */
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
 
     .stats {
@@ -111,10 +142,18 @@
       flex: 0 0 auto;
     }
 
+    /**
+     * 分支名等长值不折行：oh-3.35.7-release 这类分支此前会把统计行顶成两行，
+     * 挤到 Issues/Stars/Forks。改为单行省略号。
+     */
     .value {
       font-size: 30px;
       font-weight: 700;
       line-height: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
     }
 
     .label {
@@ -190,6 +229,12 @@
         <div class="platform"><span class="platform-icon">{{@ repo.platformIconSvg}}</span>{{repo.platformLabel}}</div>
         <h1 class="title">{{repo.fullName}}</h1>
         <p class="desc">{{repo.description}}</p>
+        {{if repo.showFork}}
+        <div class="fork-line">
+          <svg class="fork-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="5" r="3"></circle><circle cx="18" cy="5" r="3"></circle><circle cx="12" cy="19" r="3"></circle><path d="M6 8v3a8 8 0 0 0 12 0V8"></path><path d="M12 16v-2"></path></svg>
+          <span>Fork 自 <span class="fork-parent">{{repo.parentName}}</span></span>
+        </div>
+        {{/if}}
         <div class="stats">
           <div class="stat">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

@@ -10,6 +10,30 @@ const userName = user => {
 
 const firstUrl = (...values) => values.map(text).find(Boolean) || '';
 
+/**
+ * 抽取 fork 上游仓库的标识与地址。
+ *
+ * 三个平台的字段口径不一致，统一收敛在这里：
+ *   - GitHub：parent 是直接父级，source 才是这条 fork 链的终点；多层 fork 时
+ *     用 source 才不会链到中间层。
+ *   - GitCode：parent 结构与 GitHub 类似，另有个顶层的 parentfull_name 字符串兜底。
+ *   - Gitee：只有 parent。
+ * 取不到就返回空，调用方据此判断是否展示 fork 行。
+ */
+const pickForkParent = (data = {}) => {
+  const source = data.source && typeof data.source === 'object' ? data.source : null;
+  const parent = data.parent && typeof data.parent === 'object' ? data.parent : null;
+  const picked = source || parent || null;
+  const name = text(
+    picked?.full_name ||
+    picked?.path_with_namespace ||
+    data.parentfull_name ||
+    ''
+  );
+  const url = firstUrl(picked?.html_url, picked?.web_url, picked?.url);
+  return { name, url };
+};
+
 export const normalizeRepo = (platform, data = {}, fallback = {}) => {
   const owner = text(fallback.owner || data.owner?.login || data.owner?.name || data.namespace?.path);
   const repo = text(fallback.repo || data.name || data.path);
@@ -23,6 +47,7 @@ export const normalizeRepo = (platform, data = {}, fallback = {}) => {
     data.creator?.avatar_url,
     fallback.avatarUrl
   );
+  const forkParent = pickForkParent(data);
   return {
     platform,
     instance: fallback.instance || '',
@@ -37,6 +62,13 @@ export const normalizeRepo = (platform, data = {}, fallback = {}) => {
     openIssues: number(data.open_issues_count ?? data.open_issues),
     webUrl: firstUrl(data.html_url, data.web_url, data.url, fallback.webUrl),
     updatedAt: text(data.updated_at || data.pushed_at),
+    /**
+     * fork 信息：isFork 表示这本身是 fork，parentName 是上游完整名。
+     * 上游星数不额外请求（GitHub/Gitee 要再打一次 API），只用仓库自身数据。
+     */
+    isFork: Boolean(data.fork),
+    parentName: forkParent.name,
+    parentUrl: forkParent.url,
     raw: data
   };
 };

@@ -47,6 +47,12 @@ const toCardData = repo => {
     avatarUrl: repo.avatarUrl || '',
     description: shorten(repo.description || '暂无仓库描述', 88),
     defaultBranch: shorten(repo.defaultBranch || 'unknown', 18),
+    /**
+     * 分支名给足长度（长分支如 oh-3.35.7-release 不该被砍成 oh-3.35.7-rel...），
+     * 折行交给模板的省略号规则处理。
+     */
+    parentName: shorten(repo.parentName || '', 48),
+    showFork: Boolean(repo.isFork && repo.parentName),
     updatedAt: formatDate(repo.updatedAt),
     stars: formatNumber(repo.stars),
     forks: formatNumber(repo.forks),

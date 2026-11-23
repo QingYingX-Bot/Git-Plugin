@@ -9,6 +9,7 @@ export const formatRepo = repo => {
     `默认分支: ${repo.defaultBranch || '未知'}`,
     `更新: ${formatDate(repo.updatedAt)}`
   ];
+  if (repo.isFork && repo.parentName) lines.push(`Fork 自: ${repo.parentName}`);
   if (repo.webUrl) lines.push(`链接: ${repo.webUrl}`);
   return shortText(lines.join('\n'), 1200);
 };
