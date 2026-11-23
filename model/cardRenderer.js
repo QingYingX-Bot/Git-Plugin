@@ -63,6 +63,15 @@ const toCardData = repo => {
     mirrorOwner: repo.mirrorOwner || '',
     mirrorTitle: shorten(repo.mirrorShortName || repo.fullName || '', 28),
     showMirror: Boolean(repo.isMirror && repo.mirrorLabel),
+    /**
+     * Gitea 自建实例的同步镜像：没有平台角标图，改用「镜像」胶囊
+     * 加一行上游地址（original_url 是 Gitea 独有的权威字段）。
+     */
+    showGiteaMirror: Boolean(repo.isMirror && repo.mirrorKind === 'gitea' && repo.mirrorUpstream),
+    mirrorUpstream: cleanUpstream(repo.mirrorUpstream),
+    mirrorSync: [formatInterval(repo.mirrorInterval), formatSyncTime(repo.mirrorLastSync)]
+      .filter(Boolean)
+      .join(' · '),
     updatedAt: formatDate(repo.updatedAt),
     stars: formatNumber(repo.stars),
     forks: formatNumber(repo.forks),
@@ -77,6 +86,45 @@ const toCardData = repo => {
  * 所以徽标必须内联成 data URI 才能稳定加载。
  */
 const BADGE_CACHE = new Map();
+
+/**
+ * 把 Gitea 的 mirror_interval（Go duration，如 "8h0m0s"、"1h30m0s"）转成人话。
+ * 解析失败就原样返回，不要把卡片弄崩。
+ */
+const formatInterval = value => {
+  const text = String(value || '').trim();
+  const m = text.match(/^(?:([\d.]+)h)?(?:([\d.]+)m)?(?:([\d.]+)s)?$/);
+  if (!text || !m || (!m[1] && !m[2] && !m[3])) return text;
+  const h = Number(m[1] || 0);
+  const min = Number(m[2] || 0);
+  const parts = [];
+  if (h) parts.push(`${h} 小时`);
+  if (min) parts.push(`${min} 分钟`);
+  if (!parts.length) parts.push(`${Number(m[3] || 0)} 秒`);
+  return parts.join(' ');
+};
+
+/** 上游地址去掉协议和 .git 后缀，卡片上更短 */
+const cleanUpstream = value => String(value || '')
+  .replace(/^https?:\/\//i, '')
+  .replace(/\.git$/i, '')
+  .replace(/\/+$/, '');
+
+/** 上次同步用相对时间：今天 09:31 / 昨天 18:20 / 3 天前 */
+const formatSyncTime = value => {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  const now = new Date();
+  const dayMs = 24 * 60 * 60 * 1000;
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const diffDays = Math.floor((startOfToday - new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()) / dayMs);
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  if (diffDays <= 0) return `今天 ${hh}:${mm}`;
+  if (diffDays === 1) return `昨天 ${hh}:${mm}`;
+  if (diffDays < 30) return `${diffDays} 天前`;
+  return formatDate(value);
+};
 
 const loadMirrorBadge = fileName => {
   if (!fileName) return '';

@@ -9,6 +9,12 @@ export const formatRepo = repo => {
     `默认分支: ${repo.defaultBranch || '未知'}`,
     `更新: ${formatDate(repo.updatedAt)}`
   ];
+  if (repo.mirrorUpstream) {
+    const sync = [repo.mirrorInterval, repo.mirrorLastSync].filter(Boolean).join(' · ');
+    lines.push(`镜像自: ${repo.mirrorUpstream}${sync ? ` (${sync})` : ''}`);
+  } else if (repo.isMirror && repo.mirrorLabel) {
+    lines.push(`镜像类型: ${repo.mirrorLabel}`);
+  }
   if (repo.isFork && repo.parentName) lines.push(`Fork 自: ${repo.parentName}`);
   if (repo.webUrl) lines.push(`链接: ${repo.webUrl}`);
   return shortText(lines.join('\n'), 1200);

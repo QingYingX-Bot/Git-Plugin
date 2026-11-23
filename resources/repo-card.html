@@ -87,6 +87,67 @@
      * 镜像徽标：直接使用平台官方角标图（GitHub 加速计划 / Gitee 极速下载），
      * 跟在平台名后面，不额外加文字前缀。
      */
+    /**
+     * Gitea 自建实例的同步镜像：绿色小胶囊 + 上游行。
+     * 它没有官方角标图（那只是 Gitee/GitCode 的加速下载计划），
+     * 所以用纯文字胶囊，配色跟随平台主色。
+     */
+    .mirror-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 0 14px;
+      height: 30px;
+      border-radius: 999px;
+      background: {{repo.accent}};
+      color: #fff;
+      font-size: 18px;
+      font-weight: 600;
+      line-height: 1;
+      white-space: nowrap;
+      flex: 0 0 auto;
+    }
+
+    .mirror-chip svg {
+      width: 15px;
+      height: 15px;
+      flex: 0 0 auto;
+    }
+
+    /* 上游行：紧跟在描述下面，不参与统计行布局 */
+    .upstream-line {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      max-width: 780px;
+      margin: 16px 0 0;
+      color: #6e7781;
+      font-size: 22px;
+      line-height: 1.35;
+      min-width: 0;
+    }
+
+    .upstream-line .up-arrow {
+      color: {{repo.accent}};
+      opacity: 0.75;
+      flex: 0 0 auto;
+    }
+
+    .upstream-line .up-name {
+      color: #24292f;
+      font-weight: 700;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      min-width: 0;
+    }
+
+    .upstream-line .up-sync {
+      color: #8b949e;
+      font-size: 19px;
+      flex: 0 0 auto;
+    }
+
     .mirror-badge {
       display: block;
       /* 36px：再小「加速计划」的字就糊了（原图 300x56 三层信息） */
@@ -265,7 +326,11 @@
       <section>
         <div class="platform-row">
           <div class="platform"><span class="platform-icon">{{@ repo.platformIconSvg}}</span>{{repo.platformLabel}}</div>
-          {{if repo.showMirror}}
+          {{if repo.showGiteaMirror}}
+          <span class="mirror-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M21 12a9 9 0 1 1-2.6-6.4"></path><path d="M21 3v6h-6"></path></svg>镜像
+          </span>
+          {{else if repo.showMirror}}
           <img class="mirror-badge" src="{{repo.mirrorBadge}}" alt="">
           {{/if}}
         </div>
@@ -276,6 +341,16 @@
         <h1 class="title">{{repo.fullName}}</h1>
         {{/if}}
         <p class="desc">{{repo.description}}</p>
+        {{if repo.showGiteaMirror}}
+        <div class="upstream-line">
+          <span class="up-arrow">&#8627;</span>
+          <span>同步自</span>
+          <span class="up-name">{{repo.mirrorUpstream}}</span>
+          {{if repo.mirrorSync}}
+          <span class="up-sync">&middot; {{repo.mirrorSync}}</span>
+          {{/if}}
+        </div>
+        {{/if}}
         {{if repo.showFork}}
         <div class="fork-line">
           <svg class="fork-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="5" r="3"></circle><circle cx="18" cy="5" r="3"></circle><circle cx="12" cy="19" r="3"></circle><path d="M6 8v3a8 8 0 0 0 12 0V8"></path><path d="M12 16v-2"></path></svg>

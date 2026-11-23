@@ -58,6 +58,26 @@ const MIRROR_RULES = [
   { platform: 'gitee', prefix: 'Gitee 极速下载', label: 'Gitee 极速下载', badge: MIRROR_BADGE },
 ];
 
+/**
+ * Gitea 的镜像仓库是另一套机制：仓库由 Gitea 自己定时从上游拉取，
+ * 不是 fork，也没有 human_name 前缀，但 API 直接给出完整的镜像信息：
+ *   mirror: true
+ *   original_url: 上游地址（GitCode/Gitee 都推不出来，只有这里有）
+ *   mirror_interval: 同步周期，如 "8h0m0s"
+ *   mirror_last_sync_at: 上次同步时间
+ * 所以 Gitea 能精确显示「镜像自 <上游>」，前两个平台只能标注类型。
+ */
+const pickGiteaMirror = (data = {}) => {
+  if (data.mirror !== true) return null;
+  const upstream = text(data.original_url);
+  if (!upstream) return null;
+  return {
+    upstream,
+    interval: text(data.mirror_interval),
+    lastSync: text(data.mirror_last_sync_at),
+  };
+};
+
 const pickMirror = (platform, data = {}, fullName = '') => {
   const humanName = text(data.human_name);
   const rule = MIRROR_RULES.find(item => item.platform === platform && humanName.startsWith(item.prefix));
@@ -91,7 +111,9 @@ export const normalizeRepo = (platform, data = {}, fallback = {}) => {
     fallback.avatarUrl
   );
   const forkParent = pickForkParent(data);
-  const mirrorInfo = pickMirror(platform, data, fullName);
+  /** Gitea 镜像优先：它是权威字段，且与 fork 互斥（镜像仓库不是 fork） */
+  const giteaMirror = pickGiteaMirror(data);
+  const mirrorInfo = giteaMirror ? null : pickMirror(platform, data, fullName);
   return {
     platform,
     instance: fallback.instance || '',
@@ -113,12 +135,20 @@ export const normalizeRepo = (platform, data = {}, fallback = {}) => {
     isFork: Boolean(data.fork),
     parentName: forkParent.name,
     parentUrl: forkParent.url,
-    /** 官方镜像仓库：isMirror 为真时卡片走镜像样式 */
-    isMirror: Boolean(mirrorInfo),
-    mirrorLabel: mirrorInfo?.label || '',
+    /**
+     * 镜像仓库：两种来源
+     *   - 平台官方镜像（GitCode 加速计划 / Gitee 极速下载）：有 badge 图，无上游地址
+     *   - Gitea 自建实例的同步镜像：无 badge，但 original_url 直接给出上游
+     */
+    isMirror: Boolean(mirrorInfo || giteaMirror),
+    mirrorKind: giteaMirror ? 'gitea' : mirrorInfo ? 'platform' : '',
+    mirrorLabel: mirrorInfo?.label || (giteaMirror ? '镜像' : ''),
     mirrorBadge: mirrorInfo?.badge || '',
     mirrorOwner: mirrorInfo?.owner || '',
     mirrorShortName: mirrorInfo?.shortName || '',
+    mirrorUpstream: giteaMirror?.upstream || '',
+    mirrorInterval: giteaMirror?.interval || '',
+    mirrorLastSync: giteaMirror?.lastSync || '',
     raw: data
   };
 };
