@@ -59,6 +59,7 @@ const toCardData = repo => {
      */
     isMirror: Boolean(repo.isMirror),
     mirrorLabel: repo.mirrorLabel || '',
+    mirrorBadge: loadMirrorBadge(repo.mirrorBadge),
     mirrorOwner: repo.mirrorOwner || '',
     mirrorTitle: shorten(repo.mirrorShortName || repo.fullName || '', 28),
     showMirror: Boolean(repo.isMirror && repo.mirrorLabel),
@@ -67,6 +68,28 @@ const toCardData = repo => {
     forks: formatNumber(repo.forks),
     openIssues: formatNumber(repo.openIssues)
   };
+};
+
+/**
+ * 镜像徽标读成 data URI。
+ *
+ * 渲染模板会被写到 temp/html/ 下再截图，相对路径指向那里而不是插件目录，
+ * 所以徽标必须内联成 data URI 才能稳定加载。
+ */
+const BADGE_CACHE = new Map();
+
+const loadMirrorBadge = fileName => {
+  if (!fileName) return '';
+  if (BADGE_CACHE.has(fileName)) return BADGE_CACHE.get(fileName);
+  let uri = '';
+  try {
+    const buf = fs.readFileSync(path.join(getPluginRoot(), 'resources', 'icons', fileName));
+    uri = `data:image/png;base64,${buf.toString('base64')}`;
+  } catch (err) {
+    logger.warn(`[Git-Plugin] 读取镜像徽标失败: ${fileName}`);
+  }
+  BADGE_CACHE.set(fileName, uri);
+  return uri;
 };
 
 const loadPlatformIcon = platform => {
