@@ -46,10 +46,16 @@ const pickForkParent = (data = {}) => {
  * 上游地址无法从路径反推（gh_mirrors/le/Leonida 的 le 是分类不是 owner），
  * 所以只标注「是镜像」，不生成上游链接。
  */
+/**
+ * 镜像徽标统一用一张「GitHub 加速计划」角标：GitCode 的加速计划与 Gitee 的
+ * 极速下载本质是同一件事（加速下载 GitHub 上游），不必为两边各维护一张图。
+ */
+const MIRROR_BADGE = 'github-fast.png';
+
 const MIRROR_RULES = [
-  { platform: 'gitcode', prefix: 'GitHub 加速计划', label: 'GitHub 加速计划' },
-  { platform: 'gitcode', prefix: 'GitHub推荐项目精选', label: 'GitHub 推荐精选' },
-  { platform: 'gitee', prefix: 'Gitee 极速下载', label: 'Gitee 极速下载' },
+  { platform: 'gitcode', prefix: 'GitHub 加速计划', label: 'GitHub 加速计划', badge: MIRROR_BADGE },
+  { platform: 'gitcode', prefix: 'GitHub推荐项目精选', label: 'GitHub 推荐精选', badge: MIRROR_BADGE },
+  { platform: 'gitee', prefix: 'Gitee 极速下载', label: 'Gitee 极速下载', badge: MIRROR_BADGE },
 ];
 
 const pickMirror = (platform, data = {}, fullName = '') => {
@@ -64,6 +70,7 @@ const pickMirror = (platform, data = {}, fullName = '') => {
   const hasCategory = parts.length >= 3;
   return {
     label: rule.label,
+    badge: rule.badge,
     owner: hasCategory ? `${parts[0]} / ${parts[1]}` : parts[0] || '',
     category: hasCategory ? parts[1] : '',
     shortName: parts[parts.length - 1] || '',
@@ -109,6 +116,7 @@ export const normalizeRepo = (platform, data = {}, fallback = {}) => {
     /** 官方镜像仓库：isMirror 为真时卡片走镜像样式 */
     isMirror: Boolean(mirrorInfo),
     mirrorLabel: mirrorInfo?.label || '',
+    mirrorBadge: mirrorInfo?.badge || '',
     mirrorOwner: mirrorInfo?.owner || '',
     mirrorShortName: mirrorInfo?.shortName || '',
     raw: data

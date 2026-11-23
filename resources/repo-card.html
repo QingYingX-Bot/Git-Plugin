@@ -83,24 +83,15 @@
       margin-bottom: 26px;
     }
 
-    .mirror-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 0 16px;
-      height: 32px;
-      border-radius: 999px;
-      background: {{repo.accent}};
-      color: #fff;
-      font-size: 19px;
-      font-weight: 600;
-      line-height: 1;
-      white-space: nowrap;
-    }
-
-    .mirror-pill svg {
-      width: 17px;
-      height: 17px;
+    /**
+     * 镜像徽标：直接使用平台官方角标图（GitHub 加速计划 / Gitee 极速下载），
+     * 跟在平台名后面，不额外加文字前缀。
+     */
+    .mirror-badge {
+      display: block;
+      /* 36px：再小「加速计划」的字就糊了（原图 300x56 三层信息） */
+      height: 36px;
+      width: auto;
       flex: 0 0 auto;
     }
 
@@ -275,10 +266,7 @@
         <div class="platform-row">
           <div class="platform"><span class="platform-icon">{{@ repo.platformIconSvg}}</span>{{repo.platformLabel}}</div>
           {{if repo.showMirror}}
-          <div class="mirror-pill">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 0-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2 0-.4-.5-1.6.2-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.7 1.6.2 2.8.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"/></svg>
-            {{repo.mirrorLabel}}
-          </div>
+          <img class="mirror-badge" src="{{repo.mirrorBadge}}" alt="">
           {{/if}}
         </div>
         {{if repo.showMirror}}
