@@ -8,7 +8,13 @@ import { runRepoUpdateCheck } from './model/repoUpdateService.js'
 
 const userConfigPath = resolve(getPluginRoot(), 'config', 'config', 'git.yaml')
 
+/**
+ * 按 field 取值。锅巴 setConfigData 传入的是扁平格式 {"repoUpdate.enabled": true}，
+ * 也兼容嵌套格式 {repoUpdate: {enabled: true}}。扁平优先。
+ */
 const get = (obj, field) => {
+  if (obj == null) return undefined
+  if (Object.hasOwn(obj, field)) return obj[field]
   return field.split('.').reduce((o, k) => (o && o[k] !== undefined ? o[k] : undefined), obj)
 }
 
@@ -107,9 +113,10 @@ function loadSubscriptionRows() {
   return rows
 }
 
-function applySubscriptionRows(rows) {
+function applySubscriptionRows(rows, defaultPlatform) {
   const store = new RepoStore()
   const existing = store.listAllSubscriptions()
+  const fallbackPlatform = String(defaultPlatform || 'github').trim() || 'github'
 
   // Build set of existing (key\torigin) pairs
   const existingPairs = new Set()
@@ -121,11 +128,11 @@ function applySubscriptionRows(rows) {
 
   // Parse submitted rows into (ref, origin) entries
   const submittedEntries = []
-  for (const row of rows) {
+  for (const row of (Array.isArray(rows) ? rows : [])) {
     const rawFullName = String(row?.fullName || '').trim()
     if (!rawFullName) continue
 
-    const { platform, instance, fullName } = parseRepoInput(rawFullName, row?.platform)
+    const { platform, instance, fullName } = parseRepoInput(rawFullName, row?.platform || fallbackPlatform)
     if (!platform || !/^[^/]+\/[^/]+$/.test(fullName)) continue
 
     const [owner, repo] = fullName.split('/')
@@ -260,9 +267,10 @@ export function supportGuoba() {
           }
 
           // Convert GSubForm notifyTargets to flat origin array
-          if (data.autoScan?.notifyTargets !== undefined) {
+          const notifyTargets = get(data, 'autoScan.notifyTargets')
+          if (notifyTargets !== undefined) {
             const targets = []
-            for (const item of data.autoScan.notifyTargets) {
+            for (const item of (Array.isArray(notifyTargets) ? notifyTargets : [])) {
               for (const g of (item.groups || [])) {
                 const raw = String(g || '').trim()
                 if (!raw) continue
@@ -290,8 +298,9 @@ export function supportGuoba() {
 
           fs.writeFileSync(userConfigPath, YAML.stringify(merged))
 
-          if (data.subscriptionData?.subscriptions !== undefined) {
-            applySubscriptionRows(data.subscriptionData.subscriptions)
+          const subscriptions = get(data, 'subscriptionData.subscriptions')
+          if (subscriptions !== undefined) {
+            applySubscriptionRows(subscriptions, merged?.defaultPlatform)
           }
 
           // Trigger repo update check immediately if enabled
